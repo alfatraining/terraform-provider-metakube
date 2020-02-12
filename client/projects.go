@@ -2,14 +2,13 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 )
 
 const (
-	projectsListhPath        = "/api/v1/projects"
-	projectsCreatePath       = "/api/v1/projects"
-	projectsGetOnePrefixPath = "/api/v1/projects/"
+	projectsBasePath = "/api/v1/projects"
 )
 
 type Project struct {
@@ -43,7 +42,7 @@ type ProjectsService struct {
 
 // List returns list of all projects.
 func (svc *ProjectsService) List(ctx context.Context) ([]Project, error) {
-	req, err := svc.client.NewRequest(http.MethodGet, projectsListhPath, nil)
+	req, err := svc.client.NewRequest(http.MethodGet, projectsBasePath, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +61,7 @@ type ProjectCreateRequest struct {
 
 // Create creates a project.
 func (svc *ProjectsService) Create(ctx context.Context, create *ProjectCreateRequest) (*Project, error) {
-	req, err := svc.client.NewRequest(http.MethodPost, projectsCreatePath, create)
+	req, err := svc.client.NewRequest(http.MethodPost, projectsBasePath, create)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +74,7 @@ func (svc *ProjectsService) Create(ctx context.Context, create *ProjectCreateReq
 
 // Get gets projects with given id.
 func (svc *ProjectsService) Get(ctx context.Context, id string) (*Project, error) {
-	req, err := svc.client.NewRequest(http.MethodGet, projectsGetOnePrefixPath+id, nil)
+	req, err := svc.client.NewRequest(http.MethodGet, projectResourcePath(id), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -84,4 +83,8 @@ func (svc *ProjectsService) Get(ctx context.Context, id string) (*Project, error
 		return nil, err
 	}
 	return ret, nil
+}
+
+func projectResourcePath(id string) string {
+	return fmt.Sprint(projectsBasePath, "/", id)
 }

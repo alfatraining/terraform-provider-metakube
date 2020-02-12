@@ -88,7 +88,7 @@ func TestDatacenters_List(t *testing.T) {
 		}
 	]`
 
-	mux.HandleFunc(datacentersPath, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/dc", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodGet)
 		fmt.Fprint(w, datacentersJSON)
 	})

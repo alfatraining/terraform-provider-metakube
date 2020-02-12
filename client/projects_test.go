@@ -76,7 +76,7 @@ func TestProjects_List(t *testing.T) {
 
 	projectsJSON := fmt.Sprintf("[%s]", projectJSON)
 
-	mux.HandleFunc(projectsListhPath, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/projects", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodGet)
 		fmt.Fprint(w, projectsJSON)
 	})
@@ -103,7 +103,7 @@ func TestProjects_Create(t *testing.T) {
 		},
 		Name: "myproject",
 	}
-	mux.HandleFunc(projectsCreatePath, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/projects", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodPost)
 		v := &ProjectCreateRequest{}
 		if err := json.NewDecoder(r.Body).Decode(v); err != nil {
@@ -138,4 +138,10 @@ func TestProject_Get(t *testing.T) {
 	if want := &project; !reflect.DeepEqual(want, got) {
 		t.Fatalf("want: %v, got: %v", want, got)
 	}
+}
+
+func TestProject_Delete(t *testing.T) {
+	setup()
+	defer teardown()
+
 }
