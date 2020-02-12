@@ -15,12 +15,12 @@ var (
 )
 
 func init() {
-	client = New(nil)
+	client = New()
 	ctx = context.TODO()
 }
 
 func TestNew(t *testing.T) {
-	client := New(nil)
+	client := New()
 
 	if client.BaseURL == nil || client.BaseURL.String() != defaultBaseURL {
 		t.Fatalf("want base url: %v, got: %v", defaultBaseURL, client.BaseURL)
@@ -28,7 +28,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestClient_NewRequest(t *testing.T) {
-	c := New(nil)
+	c := New()
 	req, err := c.NewRequest(http.MethodGet, "/foo")
 	testErrNil(t, err)
 	if want, got := defaultBaseURL+"/foo", req.URL.String(); want != got {
@@ -39,7 +39,7 @@ func TestClient_NewRequest(t *testing.T) {
 func TestClient_Do(t *testing.T) {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
-	c := New(nil)
+	c := New()
 	u, _ := url.Parse(server.URL)
 	c.BaseURL = u
 

@@ -16,7 +16,7 @@ func main() {
 		return
 	}
 
-	client := client.New(client.WithBearerToken(*token))
+	client := client.NewClient(client.WithBearerToken(*token))
 
 	dcs, err := client.Datacenters.List(context.Background())
 	if err != nil {

@@ -9,24 +9,6 @@ const (
 	datacentersPath = "/api/v1/dc"
 )
 
-// DatacentersService handles communication with datacenters related methods.
-type DatacentersService struct {
-	client *Client
-}
-
-// List requests all datacenters.
-func (svc *DatacentersService) List(ctx context.Context) ([]Datacenter, error) {
-	req, err := svc.client.NewRequest(http.MethodGet, datacentersPath)
-	if err != nil {
-		return nil, err
-	}
-	ret := make([]Datacenter, 0)
-	if err := svc.client.Do(ctx, req, &ret); err != nil {
-		return nil, err
-	}
-	return ret, nil
-}
-
 type Datacenter struct {
 	Metadata DatacenterMetadata `json:"metadata"`
 	Seed     bool               `json:"seed"`
@@ -105,4 +87,22 @@ type DatacenterSpecVsphare struct {
 	DataStore  string            `json:"datastore"`
 	Endpoint   string            `json:"endpoint"`
 	Templates  map[string]string `json:"templates"`
+}
+
+// DatacentersService handles communication with datacenters related methods.
+type DatacentersService struct {
+	client *Client
+}
+
+// List requests all datacenters.
+func (svc *DatacentersService) List(ctx context.Context) ([]Datacenter, error) {
+	req, err := svc.client.NewRequest(http.MethodGet, datacentersPath)
+	if err != nil {
+		return nil, err
+	}
+	ret := make([]Datacenter, 0)
+	if err := svc.client.Do(ctx, req, &ret); err != nil {
+		return nil, err
+	}
+	return ret, nil
 }

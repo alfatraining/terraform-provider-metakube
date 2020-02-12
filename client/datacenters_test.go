@@ -11,7 +11,7 @@ import (
 )
 
 func TestDatacenters_List(t *testing.T) {
-	client := New(nil)
+	client := New()
 	ctx := context.TODO()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)

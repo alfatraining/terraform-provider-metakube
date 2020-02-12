@@ -21,6 +21,7 @@ type Client struct {
 
 	// Services
 	Datacenters *DatacentersService
+	Projects    *ProjectsService
 }
 
 // CreateOpt represent api clients construction option.
@@ -44,18 +45,28 @@ func WithBearerToken(token string) CreateOpt {
 	}
 }
 
-// New returns new metakube api client.
-func New(opt CreateOpt) *Client {
-	client := &Client{}
-	if opt == nil {
-		client.client = http.DefaultClient
-	} else {
-		client.client = opt()
+// WithDefault used to create api client with default http client.
+func WithDefault() CreateOpt {
+	return func() *http.Client {
+		return http.DefaultClient
+	}
+}
+
+// New returns new default metakube api client.
+func New() *Client {
+	return NewClient(WithDefault())
+}
+
+// NewClient returns new metakube api client.
+func NewClient(opt CreateOpt) *Client {
+	client := &Client{
+		client: opt(),
 	}
 	baseURL, _ := url.Parse(defaultBaseURL)
 	client.BaseURL = baseURL
 
 	client.Datacenters = &DatacentersService{client}
+	client.Projects = &ProjectsService{client}
 
 	return client
 }
