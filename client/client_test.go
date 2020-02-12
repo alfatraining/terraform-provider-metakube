@@ -2,11 +2,13 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 )
 
 var (
@@ -16,7 +18,7 @@ var (
 	server *httptest.Server
 )
 
-func init() {
+func setup() {
 	client = New()
 	ctx = context.TODO()
 	mux = http.NewServeMux()
@@ -24,6 +26,10 @@ func init() {
 
 	url, _ := url.Parse(server.URL)
 	client.BaseURL = url
+}
+
+func teardown() {
+	server.Close()
 }
 
 func TestNew(t *testing.T) {
@@ -36,14 +42,28 @@ func TestNew(t *testing.T) {
 
 func TestClient_NewRequest(t *testing.T) {
 	c := New()
-	req, err := c.NewRequest(http.MethodGet, "/foo")
+	req, err := c.NewRequest(http.MethodGet, "/foo", nil)
 	testErrNil(t, err)
+
 	if want, got := defaultBaseURL+"/foo", req.URL.String(); want != got {
 		t.Fatalf("want request url: %s, got: %s", want, got)
+	}
+
+	want := "test-data"
+	req, err = c.NewRequest(http.MethodPost, "post-data", &want)
+	testErrNil(t, err)
+	got := new(string)
+	err = json.NewDecoder(req.Body).Decode(&got)
+	testErrNil(t, err)
+	if *got != "test-data" {
+		t.Fatalf("request body encoding error, want: %v, got: %v", want, got)
 	}
 }
 
 func TestClient_Do(t *testing.T) {
+	setup()
+	defer teardown()
+
 	method := http.MethodGet
 
 	mux.HandleFunc("/foo", func(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +73,7 @@ func TestClient_Do(t *testing.T) {
 		fmt.Fprint(w, "\"bar\"")
 	})
 
-	req, err := client.NewRequest(method, "/foo")
+	req, err := client.NewRequest(method, "/foo", nil)
 	testErrNil(t, err)
 
 	var got string
@@ -80,4 +100,9 @@ func testMethod(t *testing.T, r *http.Request, method string) {
 	if r.Method != method {
 		t.Fatalf("want request: %v, got: %v", method, r.Method)
 	}
+}
+
+func testParseTime(s string) *time.Time {
+	ret, _ := time.Parse(time.RFC3339, s)
+	return &ret
 }

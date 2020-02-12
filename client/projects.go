@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	projectsListhPath = "/api/v1/projects"
+	projectsListhPath  = "/api/v1/projects"
+	projectsCreatePath = "/api/v1/projects"
 )
 
 type Project struct {
@@ -41,11 +42,30 @@ type ProjectsService struct {
 
 // List returns list of all projects.
 func (svc *ProjectsService) List(ctx context.Context) ([]Project, error) {
-	req, err := svc.client.NewRequest(http.MethodGet, projectsListhPath)
+	req, err := svc.client.NewRequest(http.MethodGet, projectsListhPath, nil)
 	if err != nil {
 		return nil, err
 	}
 	ret := make([]Project, 0)
+	if err := svc.client.Do(ctx, req, &ret); err != nil {
+		return nil, err
+	}
+	return ret, nil
+}
+
+// ProjectCreateRequest create new project options.
+type ProjectCreateRequest struct {
+	Labels map[string]string `json:"labels"`
+	Name   string            `json:"name"`
+}
+
+// Create a new project.
+func (svc *ProjectsService) Create(ctx context.Context, create *ProjectCreateRequest) (*Project, error) {
+	req, err := svc.client.NewRequest(http.MethodPost, projectsCreatePath, create)
+	if err != nil {
+		return nil, err
+	}
+	ret := new(Project)
 	if err := svc.client.Do(ctx, req, &ret); err != nil {
 		return nil, err
 	}

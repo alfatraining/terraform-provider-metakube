@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -72,12 +73,19 @@ func NewClient(opt CreateOpt) *Client {
 }
 
 // NewRequest returns new request to api configured in client.
-func (c *Client) NewRequest(method, path string) (*http.Request, error) {
+func (c *Client) NewRequest(method, path string, payload interface{}) (*http.Request, error) {
 	u, err := c.BaseURL.Parse(path)
 	if err != nil {
 		return nil, err
 	}
-	return http.NewRequest(method, u.String(), nil)
+	buf := new(bytes.Buffer)
+	if payload != nil {
+		if err := json.NewEncoder(buf).Encode(payload); err != nil {
+			return nil, err
+		}
+
+	}
+	return http.NewRequest(method, u.String(), buf)
 }
 
 // Do performs a request.

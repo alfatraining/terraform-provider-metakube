@@ -8,6 +8,9 @@ import (
 )
 
 func TestDatacenters_List(t *testing.T) {
+	setup()
+	defer teardown()
+
 	datacentersJSON := `[
 		{
 			"metadata": {

@@ -96,7 +96,7 @@ type DatacentersService struct {
 
 // List requests all datacenters.
 func (svc *DatacentersService) List(ctx context.Context) ([]Datacenter, error) {
-	req, err := svc.client.NewRequest(http.MethodGet, datacentersPath)
+	req, err := svc.client.NewRequest(http.MethodGet, datacentersPath, nil)
 	if err != nil {
 		return nil, err
 	}
