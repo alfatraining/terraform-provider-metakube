@@ -1,25 +1,14 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"reflect"
 	"testing"
 	"time"
 )
 
 func TestProjects_List(t *testing.T) {
-	client := New()
-	ctx := context.TODO()
-	mux := http.NewServeMux()
-	server := httptest.NewServer(mux)
-
-	url, _ := url.Parse(server.URL)
-	client.BaseURL = url
-
 	projectsJSON := `[
 		{
 		  "creationTimestamp": "2020-02-12T13:51:53.926Z",
@@ -50,7 +39,7 @@ func TestProjects_List(t *testing.T) {
 		}
 	  ]`
 
-	mux.HandleFunc("/api/v1/projects", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(projectsListhPath, func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodGet)
 		fmt.Fprint(w, projectsJSON)
 	})

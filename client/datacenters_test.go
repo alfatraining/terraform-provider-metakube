@@ -1,24 +1,13 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"reflect"
 	"testing"
 )
 
 func TestDatacenters_List(t *testing.T) {
-	client := New()
-	ctx := context.TODO()
-	mux := http.NewServeMux()
-	server := httptest.NewServer(mux)
-
-	url, _ := url.Parse(server.URL)
-	client.BaseURL = url
-
 	datacentersJSON := `[
 		{
 			"metadata": {
@@ -96,7 +85,7 @@ func TestDatacenters_List(t *testing.T) {
 		}
 	]`
 
-	mux.HandleFunc("/api/v1/dc", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(datacentersPath, func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodGet)
 		fmt.Fprint(w, datacentersJSON)
 	})

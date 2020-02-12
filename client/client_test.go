@@ -12,11 +12,18 @@ import (
 var (
 	client *Client
 	ctx    context.Context
+	mux    *http.ServeMux
+	server *httptest.Server
 )
 
 func init() {
 	client = New()
 	ctx = context.TODO()
+	mux = http.NewServeMux()
+	server = httptest.NewServer(mux)
+
+	url, _ := url.Parse(server.URL)
+	client.BaseURL = url
 }
 
 func TestNew(t *testing.T) {
@@ -37,12 +44,6 @@ func TestClient_NewRequest(t *testing.T) {
 }
 
 func TestClient_Do(t *testing.T) {
-	mux := http.NewServeMux()
-	server := httptest.NewServer(mux)
-	c := New()
-	u, _ := url.Parse(server.URL)
-	c.BaseURL = u
-
 	method := http.MethodGet
 
 	mux.HandleFunc("/foo", func(w http.ResponseWriter, r *http.Request) {
@@ -52,10 +53,12 @@ func TestClient_Do(t *testing.T) {
 		fmt.Fprint(w, "\"bar\"")
 	})
 
-	req, err := c.NewRequest(method, "/foo")
+	req, err := client.NewRequest(method, "/foo")
 	testErrNil(t, err)
+
 	var got string
-	err = c.Do(context.TODO(), req, &got)
+
+	err = client.Do(context.TODO(), req, &got)
 	testErrNil(t, err)
 
 	if want := "bar"; want != got {
