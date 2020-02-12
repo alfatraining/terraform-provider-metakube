@@ -114,7 +114,25 @@ func TestProjects_Create(t *testing.T) {
 		}
 		fmt.Fprint(w, projectJSON)
 	})
+
 	got, err := client.Projects.Create(ctx, createRequest)
+	testErrNil(t, err)
+
+	if want := &project; !reflect.DeepEqual(want, got) {
+		t.Fatalf("want: %v, got: %v", want, got)
+	}
+}
+
+func TestProject_Get(t *testing.T) {
+	setup()
+	defer teardown()
+
+	mux.HandleFunc("/api/v1/projects/"+project.ID, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodGet)
+		fmt.Fprint(w, projectJSON)
+	})
+
+	got, err := client.Projects.Get(ctx, project.ID)
 	testErrNil(t, err)
 
 	if want := &project; !reflect.DeepEqual(want, got) {

@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	projectsListhPath  = "/api/v1/projects"
-	projectsCreatePath = "/api/v1/projects"
+	projectsListhPath        = "/api/v1/projects"
+	projectsCreatePath       = "/api/v1/projects"
+	projectsGetOnePrefixPath = "/api/v1/projects/"
 )
 
 type Project struct {
@@ -59,9 +60,22 @@ type ProjectCreateRequest struct {
 	Name   string            `json:"name"`
 }
 
-// Create a new project.
+// Create creates a project.
 func (svc *ProjectsService) Create(ctx context.Context, create *ProjectCreateRequest) (*Project, error) {
 	req, err := svc.client.NewRequest(http.MethodPost, projectsCreatePath, create)
+	if err != nil {
+		return nil, err
+	}
+	ret := new(Project)
+	if err := svc.client.Do(ctx, req, &ret); err != nil {
+		return nil, err
+	}
+	return ret, nil
+}
+
+// Get gets projects with given id.
+func (svc *ProjectsService) Get(ctx context.Context, id string) (*Project, error) {
+	req, err := svc.client.NewRequest(http.MethodGet, projectsGetOnePrefixPath+id, nil)
 	if err != nil {
 		return nil, err
 	}
