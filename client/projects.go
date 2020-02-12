@@ -85,6 +85,15 @@ func (svc *ProjectsService) Get(ctx context.Context, id string) (*Project, error
 	return ret, nil
 }
 
+// Delete deletes projects with given id.
+func (svc *ProjectsService) Delete(ctx context.Context, id string) error {
+	req, err := svc.client.NewRequest(http.MethodDelete, projectResourcePath(id), nil)
+	if err != nil {
+		return err
+	}
+	return svc.client.Do(ctx, req, nil)
+}
+
 func projectResourcePath(id string) string {
 	return fmt.Sprint(projectsBasePath, "/", id)
 }

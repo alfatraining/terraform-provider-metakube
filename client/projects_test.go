@@ -144,4 +144,9 @@ func TestProject_Delete(t *testing.T) {
 	setup()
 	defer teardown()
 
+	mux.HandleFunc("/api/v1/projects/"+project.ID, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodDelete)
+	})
+
+	testErrNil(t, client.Projects.Delete(ctx, project.ID))
 }

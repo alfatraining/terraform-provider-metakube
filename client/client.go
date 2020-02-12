@@ -100,5 +100,8 @@ func (c *Client) Do(ctx context.Context, req *http.Request, out interface{}) err
 		return fmt.Errorf("non-ok status returned: %v", resp.Status)
 	}
 
-	return json.NewDecoder(resp.Body).Decode(out)
+	if out != nil {
+		return json.NewDecoder(resp.Body).Decode(out)
+	}
+	return nil
 }
