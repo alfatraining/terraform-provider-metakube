@@ -1,0 +1,5 @@
+.terraform
+crash.log
+
+terraform-provider-metakube
+terraform.tfstate*

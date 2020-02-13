@@ -1,4 +1,4 @@
-package client
+package gometakube
 
 import (
 	"context"
@@ -64,25 +64,36 @@ func TestClient_Do(t *testing.T) {
 	setup()
 	defer teardown()
 
-	method := http.MethodGet
-
 	mux.HandleFunc("/foo", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != method {
-			t.Fatalf("want request: %s, got: %s", method, r.Method)
-		}
+		testMethod(t, r, http.MethodGet)
 		fmt.Fprint(w, "\"bar\"")
 	})
 
-	req, err := client.NewRequest(method, "/foo", nil)
+	req, err := client.NewRequest(http.MethodGet, "/foo", nil)
 	testErrNil(t, err)
 
 	var got string
 
-	err = client.Do(context.TODO(), req, &got)
+	err = client.Do(ctx, req, &got)
 	testErrNil(t, err)
 
 	if want := "bar"; want != got {
 		t.Fatalf("wrong reply, want: %s, got: %s", want, got)
+	}
+}
+
+func TestClient_Do_Errors(t *testing.T) {
+	setup()
+	defer teardown()
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	})
+
+	req, err := client.NewRequest(http.MethodGet, "/", nil)
+	testErrNil(t, err)
+	if want, got := ErrForbidden, client.Do(ctx, req, nil); want != got {
+		t.Fatalf("want: %v, got: %v", want, got)
 	}
 }
 

@@ -1,9 +1,10 @@
-package client
+package gometakube
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -13,6 +14,11 @@ import (
 
 const (
 	defaultBaseURL = "https://metakube.syseleven.de"
+)
+
+// Errors
+var (
+	ErrForbidden = errors.New("Access Forbidden")
 )
 
 // Client is a metkube api client.
@@ -96,7 +102,9 @@ func (c *Client) Do(ctx context.Context, req *http.Request, out interface{}) err
 		return err
 	}
 	if c := resp.StatusCode; c < 200 || c > 299 {
-		// TODO: error cases
+		if c == http.StatusForbidden {
+			return ErrForbidden
+		}
 		return fmt.Errorf("non-ok status returned: %v", resp.Status)
 	}
 
