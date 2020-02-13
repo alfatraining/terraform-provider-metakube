@@ -1,4 +1,5 @@
 provider "metakube" {
+  // Do not forget to set METAKUBE_API_TOKEN environment variable.
 }
 
 resource "metakube_project" "my-project" {
