@@ -112,6 +112,7 @@ func TestProjects_Create(t *testing.T) {
 		if !reflect.DeepEqual(createRequest, v) {
 			t.Fatalf("want: %v, got: %v", createRequest, v)
 		}
+		w.WriteHeader(http.StatusCreated)
 		fmt.Fprint(w, projectJSON)
 	})
 
@@ -149,4 +150,27 @@ func TestProject_Delete(t *testing.T) {
 	})
 
 	testErrNil(t, client.Projects.Delete(ctx, project.ID))
+}
+
+func TestProject_Update(t *testing.T) {
+	setup()
+	defer teardown()
+
+	mux.HandleFunc("/api/v1/projects/"+project.ID, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPut)
+		got := &Project{}
+		if err := json.NewDecoder(r.Body).Decode(got); err != nil {
+			t.Fatalf("unexpected request parse error: %v", err)
+		}
+		if want := &project; !reflect.DeepEqual(want, got) {
+			t.Fatalf("want: %+v, got: %+v", want, got)
+		}
+		fmt.Fprint(w, projectJSON)
+	})
+
+	got, err := client.Projects.Update(ctx, &project)
+	testErrNil(t, err)
+	if want := &project; !reflect.DeepEqual(want, got) {
+		t.Fatalf("want: %v, got: %v", want, got)
+	}
 }

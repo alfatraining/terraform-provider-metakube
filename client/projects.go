@@ -53,7 +53,7 @@ func (svc *ProjectsService) List(ctx context.Context) ([]Project, error) {
 	return ret, nil
 }
 
-// ProjectCreateRequest create new project options.
+// ProjectCreateRequest payload to Create and Update a project.
 type ProjectCreateRequest struct {
 	Labels map[string]string `json:"labels"`
 	Name   string            `json:"name"`
@@ -75,6 +75,19 @@ func (svc *ProjectsService) Create(ctx context.Context, create *ProjectCreateReq
 // Get gets projects with given id.
 func (svc *ProjectsService) Get(ctx context.Context, id string) (*Project, error) {
 	req, err := svc.client.NewRequest(http.MethodGet, projectResourcePath(id), nil)
+	if err != nil {
+		return nil, err
+	}
+	ret := new(Project)
+	if err := svc.client.Do(ctx, req, &ret); err != nil {
+		return nil, err
+	}
+	return ret, nil
+}
+
+// Update updates a project.
+func (svc *ProjectsService) Update(ctx context.Context, update *Project) (*Project, error) {
+	req, err := svc.client.NewRequest(http.MethodPut, projectResourcePath(update.ID), update)
 	if err != nil {
 		return nil, err
 	}
