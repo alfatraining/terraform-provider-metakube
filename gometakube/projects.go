@@ -86,8 +86,8 @@ func (svc *ProjectsService) Get(ctx context.Context, id string) (*Project, error
 }
 
 // Update updates a project.
-func (svc *ProjectsService) Update(ctx context.Context, update *Project) (*Project, error) {
-	req, err := svc.client.NewRequest(http.MethodPut, projectResourcePath(update.ID), update)
+func (svc *ProjectsService) Update(ctx context.Context, id string, update *ProjectCreateRequest) (*Project, error) {
+	req, err := svc.client.NewRequest(http.MethodPut, projectResourcePath(id), update)
 	if err != nil {
 		return nil, err
 	}

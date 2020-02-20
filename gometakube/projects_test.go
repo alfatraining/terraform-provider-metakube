@@ -156,21 +156,24 @@ func TestProject_Update(t *testing.T) {
 	setup()
 	defer teardown()
 
+	update := ProjectCreateRequest{
+		Name: "name",
+		Labels: map[string]string{
+			"label1": "string",
+		},
+	}
 	mux.HandleFunc("/api/v1/projects/"+project.ID, func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodPut)
-		got := &Project{}
+		got := &ProjectCreateRequest{}
 		if err := json.NewDecoder(r.Body).Decode(got); err != nil {
 			t.Fatalf("unexpected request parse error: %v", err)
 		}
-		if want := &project; !reflect.DeepEqual(want, got) {
+		if want := &update; !reflect.DeepEqual(want, got) {
 			t.Fatalf("want: %+v, got: %+v", want, got)
 		}
 		fmt.Fprint(w, projectJSON)
 	})
 
-	got, err := client.Projects.Update(ctx, &project)
+	_, err := client.Projects.Update(ctx, project.ID, &update)
 	testErrNil(t, err)
-	if want := &project; !reflect.DeepEqual(want, got) {
-		t.Fatalf("want: %v, got: %v", want, got)
-	}
 }

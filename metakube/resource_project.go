@@ -44,7 +44,7 @@ func resourceProjectCreate(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("could not create project: %v", err)
 	}
 	d.SetId(project.ID)
-	return resourceProjectRead(d, meta)
+	return nil
 }
 
 func resourceProjectRead(d *schema.ResourceData, meta interface{}) error {
@@ -65,7 +65,7 @@ func resourceProjectRead(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceProjectUpdate(d *schema.ResourceData, meta interface{}) error {
-	project := &gometakube.Project{}
+	project := &gometakube.ProjectCreateRequest{}
 	project.Name = d.Get("name").(string)
 	if attr, ok := d.GetOk("labels"); ok {
 		project.Labels = make(map[string]string)
@@ -73,9 +73,8 @@ func resourceProjectUpdate(d *schema.ResourceData, meta interface{}) error {
 			project.Labels[k] = v.(string)
 		}
 	}
-	project.ID = d.Id()
 	c := meta.(*gometakube.Client)
-	updated, err := c.Projects.Update(context.Background(), project)
+	updated, err := c.Projects.Update(context.Background(), d.Id(), project)
 	if err != nil {
 		if err == gometakube.ErrForbidden {
 			// HACK: gometakube returns ErrForbidden even for non-existing resources -
