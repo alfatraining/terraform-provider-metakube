@@ -29,6 +29,7 @@ type Client struct {
 	// Services
 	Datacenters *DatacentersService
 	Projects    *ProjectsService
+	Clusters    *ClustersService
 }
 
 // CreateOpt represent api clients construction option.
@@ -74,6 +75,7 @@ func NewClient(opt CreateOpt) *Client {
 
 	client.Datacenters = &DatacentersService{client}
 	client.Projects = &ProjectsService{client}
+	client.Clusters = &ClustersService{client}
 
 	return client
 }

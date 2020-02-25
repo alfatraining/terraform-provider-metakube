@@ -35,7 +35,7 @@ type OwnerProject struct {
 	ID    string `json:"id"`
 }
 
-// ProjectsService handles communication with projects related methods.
+// ProjectsService handles communication with projects related endpoints.
 type ProjectsService struct {
 	client *Client
 }

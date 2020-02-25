@@ -84,9 +84,7 @@ func TestProjects_List(t *testing.T) {
 	got, err := client.Projects.List(ctx)
 	testErrNil(t, err)
 
-	want := []Project{project}
-
-	if !reflect.DeepEqual(want, got) {
+	if want := []Project{project}; !reflect.DeepEqual(want, got) {
 		t.Fatalf("want: %+v, got: %+v", want, got)
 	}
 }
