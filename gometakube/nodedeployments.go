@@ -3,7 +3,6 @@ package gometakube
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"time"
 )
 
@@ -71,14 +70,11 @@ func nodeDeploymentsListURL(prj, dc, cls string) string {
 	return fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/nodedeployments", prj, dc, cls)
 }
 
+// List returns list of nodeDeployments.
 func (svc *NodeDeploymentsService) List(ctx context.Context, prj, dc, cls string) ([]NodeDeployment, error) {
 	url := nodeDeploymentsListURL(prj, dc, cls)
-	req, err := svc.client.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
 	ret := make([]NodeDeployment, 0)
-	if err := svc.client.Do(ctx, req, &ret); err != nil {
+	if err := svc.client.serviceList(ctx, url, &ret); err != nil {
 		return nil, err
 	}
 	return ret, nil

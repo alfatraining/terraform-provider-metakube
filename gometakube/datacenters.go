@@ -2,7 +2,6 @@ package gometakube
 
 import (
 	"context"
-	"net/http"
 )
 
 const (
@@ -96,12 +95,8 @@ type DatacentersService struct {
 
 // List requests all datacenters.
 func (svc *DatacentersService) List(ctx context.Context) ([]Datacenter, error) {
-	req, err := svc.client.NewRequest(http.MethodGet, datacentersPath, nil)
-	if err != nil {
-		return nil, err
-	}
 	ret := make([]Datacenter, 0)
-	if err := svc.client.Do(ctx, req, &ret); err != nil {
+	if err := svc.client.serviceList(ctx, datacentersPath, &ret); err != nil {
 		return nil, err
 	}
 	return ret, nil

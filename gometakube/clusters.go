@@ -3,7 +3,6 @@ package gometakube
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"time"
 )
 
@@ -32,7 +31,7 @@ type ClusterSpec struct {
 	OIDC                                ClusterSpecOIDC             `json:"oidc"`
 	Openshift                           *ClusterSpecOpenShift       `json:"openshift"`
 	Sys11Auth                           ClusterSpecSys11Auth        `json:"sys11auth"`
-	UpdateWindow                        *ClusterSpecUpdateWindow    `json"updateWindow,omitempty"`
+	UpdateWindow                        *ClusterSpecUpdateWindow    `json:"updateWindow,omitempty"`
 	UsePodSecurityPolicyAdmissionPlugin bool                        `json:"usePodSecurityPolicyAdmissionPlugin"`
 	Version                             string
 }
@@ -216,12 +215,8 @@ type ClustersService struct {
 // List returns list of clusters in project.
 func (svc *ClustersService) List(ctx context.Context, project string) ([]Cluster, error) {
 	url := fmt.Sprintf(clusterListURLTpl, project)
-	req, err := svc.client.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
 	ret := make([]Cluster, 0)
-	if err := svc.client.Do(ctx, req, &ret); err != nil {
+	if err := svc.client.serviceList(ctx, url, &ret); err != nil {
 		return nil, err
 	}
 	return ret, nil

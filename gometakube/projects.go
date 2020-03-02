@@ -42,12 +42,8 @@ type ProjectsService struct {
 
 // List returns list of all projects.
 func (svc *ProjectsService) List(ctx context.Context) ([]Project, error) {
-	req, err := svc.client.NewRequest(http.MethodGet, projectsBasePath, nil)
-	if err != nil {
-		return nil, err
-	}
 	ret := make([]Project, 0)
-	if err := svc.client.Do(ctx, req, &ret); err != nil {
+	if err := svc.client.serviceList(ctx, projectsBasePath, &ret); err != nil {
 		return nil, err
 	}
 	return ret, nil

@@ -27,9 +27,10 @@ type Client struct {
 	BaseURL *url.URL
 
 	// Services
-	Datacenters *DatacentersService
-	Projects    *ProjectsService
-	Clusters    *ClustersService
+	Datacenters     *DatacentersService
+	Projects        *ProjectsService
+	Clusters        *ClustersService
+	NodeDeployments *NodeDeploymentsService
 }
 
 // CreateOpt represent api clients construction option.
@@ -76,6 +77,7 @@ func NewClient(opt CreateOpt) *Client {
 	client.Datacenters = &DatacentersService{client}
 	client.Projects = &ProjectsService{client}
 	client.Clusters = &ClustersService{client}
+	client.NodeDeployments = &NodeDeploymentsService{client}
 
 	return client
 }
@@ -112,6 +114,17 @@ func (c *Client) Do(ctx context.Context, req *http.Request, out interface{}) err
 
 	if out != nil {
 		return json.NewDecoder(resp.Body).Decode(out)
+	}
+	return nil
+}
+
+func (c *Client) serviceList(ctx context.Context, url string, ret interface{}) error {
+	req, err := c.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	if err := c.Do(ctx, req, ret); err != nil {
+		return err
 	}
 	return nil
 }
