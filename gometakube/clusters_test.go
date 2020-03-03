@@ -1,6 +1,7 @@
 package gometakube
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -98,5 +99,38 @@ func TestClusters_List(t *testing.T) {
 
 	if want := []Cluster{cluster}; !reflect.DeepEqual(want, got) {
 		t.Fatalf("want: %+v, got: %+v", want, got)
+	}
+}
+
+func TestClusters_Create(t *testing.T) {
+	setup()
+	defer teardown()
+
+	createRequest := &CreateClusterRequest{
+		Cluster:        Cluster{ID: "id-cluster"},
+		NodeDeployment: NodeDeployment{ID: "id-nodeDeployment"},
+	}
+
+	prj := "the-proj"
+	dc := "bki1"
+	url := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters", prj, dc)
+	mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPost)
+		v := &CreateClusterRequest{}
+		if err := json.NewDecoder(r.Body).Decode(v); err != nil {
+			t.Fatalf("want: %v, got: %v", *createRequest, *v)
+		}
+		if !reflect.DeepEqual(createRequest, v) {
+			t.Fatalf("want: %v, got: %v", *createRequest, *v)
+		}
+		w.WriteHeader(http.StatusCreated)
+		fmt.Fprint(w, `{"id": "id-cluster"}`)
+	})
+
+	got, err := client.Clusters.Create(ctx, prj, dc, createRequest)
+	testErrNil(t, err)
+
+	if want := createRequest.Cluster; want.ID != got.ID {
+		t.Fatalf("want: %v, got: %v", want, got)
 	}
 }

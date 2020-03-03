@@ -3,6 +3,7 @@ package gometakube
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 )
 
@@ -207,6 +208,10 @@ const (
 	clusterListURLTpl = "/api/v1/projects/%s/clusters"
 )
 
+func createClusterPath(prj, dc string) string {
+	return fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters", prj, dc)
+}
+
 // ClustersService handles comminication with cluster related endpoints.
 type ClustersService struct {
 	client *Client
@@ -217,6 +222,25 @@ func (svc *ClustersService) List(ctx context.Context, project string) ([]Cluster
 	url := fmt.Sprintf(clusterListURLTpl, project)
 	ret := make([]Cluster, 0)
 	if err := svc.client.serviceList(ctx, url, &ret); err != nil {
+		return nil, err
+	}
+	return ret, nil
+}
+
+// CreateClusterRequest used to create a cluster.
+type CreateClusterRequest struct {
+	Cluster        Cluster        `json:"cluster"`
+	NodeDeployment NodeDeployment `json:"nodeDeployment"`
+}
+
+// Create creates a cluster.
+func (svc *ClustersService) Create(ctx context.Context, prj, dc string, create *CreateClusterRequest) (*Cluster, error) {
+	req, err := svc.client.NewRequest(http.MethodPost, createClusterPath(prj, dc), create)
+	if err != nil {
+		return nil, err
+	}
+	ret := new(Cluster)
+	if err := svc.client.Do(ctx, req, &ret); err != nil {
 		return nil, err
 	}
 	return ret, nil
