@@ -134,3 +134,24 @@ func TestClusters_Create(t *testing.T) {
 		t.Fatalf("want: %v, got: %v", want, got)
 	}
 }
+
+func TestClusters_Delete(t *testing.T) {
+	setup()
+	defer teardown()
+
+	prj := "the-proj"
+	dc := "bk11"
+	cls := "the-cluster"
+	url := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s", prj, dc, cls)
+	sentDelete := false
+	mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodDelete)
+		sentDelete = true
+	})
+
+	err := client.Clusters.Delete(ctx, prj, dc, cls)
+	testErrNil(t, err)
+	if !sentDelete {
+		t.Fatalf("not received request to delete")
+	}
+}

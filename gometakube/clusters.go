@@ -212,6 +212,10 @@ func createClusterPath(prj, dc string) string {
 	return fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters", prj, dc)
 }
 
+func clusterResourcePath(prj, dc, clusterID string) string {
+	return fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s", prj, dc, clusterID)
+}
+
 // ClustersService handles comminication with cluster related endpoints.
 type ClustersService struct {
 	client *Client
@@ -244,4 +248,14 @@ func (svc *ClustersService) Create(ctx context.Context, prj, dc string, create *
 		return nil, err
 	}
 	return ret, nil
+}
+
+// Delete deletes cluster.
+func (svc *ClustersService) Delete(ctx context.Context, prj, dc, clusterID string) error {
+	url := clusterResourcePath(prj, dc, clusterID)
+	req, err := svc.client.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		return err
+	}
+	return svc.client.Do(ctx, req, nil)
 }
