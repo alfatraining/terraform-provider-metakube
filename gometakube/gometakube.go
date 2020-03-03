@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 
@@ -14,11 +12,6 @@ import (
 
 const (
 	defaultBaseURL = "https://metakube.syseleven.de"
-)
-
-// Errors
-var (
-	ErrForbidden = errors.New("Access Forbidden")
 )
 
 // Client is a metkube api client.
@@ -99,53 +92,50 @@ func (c *Client) NewRequest(method, path string, payload interface{}) (*http.Req
 }
 
 // Do performs a request.
-func (c *Client) Do(ctx context.Context, req *http.Request, out interface{}) error {
+func (c *Client) Do(ctx context.Context, req *http.Request, out interface{}) (*http.Response, error) {
 	req = req.WithContext(ctx)
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return err
+		return resp, err
 	}
 	if c := resp.StatusCode; c < 200 || c > 299 {
-		if c == http.StatusForbidden {
-			return ErrForbidden
-		}
-		return fmt.Errorf("non-ok status returned: %v", resp.Status)
+		return resp, err
 	}
 
 	if out != nil {
-		return json.NewDecoder(resp.Body).Decode(out)
+		return resp, json.NewDecoder(resp.Body).Decode(out)
 	}
-	return nil
+	return resp, nil
 }
 
-func (c *Client) serviceList(ctx context.Context, url string, ret interface{}) error {
+func (c *Client) serviceList(ctx context.Context, url string, ret interface{}) (*http.Response, error) {
 	req, err := c.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	return c.Do(ctx, req, ret)
 }
 
-func (c *Client) resourceDelete(ctx context.Context, url string) error {
+func (c *Client) resourceDelete(ctx context.Context, url string) (*http.Response, error) {
 	req, err := c.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	return c.Do(ctx, req, nil)
 }
 
-func (c *Client) resourceCreate(ctx context.Context, url string, v, ret interface{}) error {
+func (c *Client) resourceCreate(ctx context.Context, url string, v, ret interface{}) (*http.Response, error) {
 	req, err := c.NewRequest(http.MethodPost, url, v)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	return c.Do(ctx, req, &ret)
 }
 
-func (c *Client) resourceGet(ctx context.Context, url string, ret interface{}) error {
+func (c *Client) resourceGet(ctx context.Context, url string, ret interface{}) (*http.Response, error) {
 	req, err := c.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	return c.Do(ctx, req, &ret)
 }

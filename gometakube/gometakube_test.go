@@ -74,26 +74,11 @@ func TestClient_Do(t *testing.T) {
 
 	var got string
 
-	err = client.Do(ctx, req, &got)
+	_, err = client.Do(ctx, req, &got)
 	testErrNil(t, err)
 
 	if want := "bar"; want != got {
 		t.Fatalf("wrong reply, want: %s, got: %s", want, got)
-	}
-}
-
-func TestClient_Do_Errors(t *testing.T) {
-	setup()
-	defer teardown()
-
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusForbidden)
-	})
-
-	req, err := client.NewRequest(http.MethodGet, "/", nil)
-	testErrNil(t, err)
-	if want, got := ErrForbidden, client.Do(ctx, req, nil); want != got {
-		t.Fatalf("want: %v, got: %v", want, got)
 	}
 }
 

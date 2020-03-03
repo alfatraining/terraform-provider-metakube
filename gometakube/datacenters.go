@@ -2,6 +2,7 @@ package gometakube
 
 import (
 	"context"
+	"net/http"
 )
 
 const (
@@ -96,8 +97,10 @@ type DatacentersService struct {
 // List requests all datacenters.
 func (svc *DatacentersService) List(ctx context.Context) ([]Datacenter, error) {
 	ret := make([]Datacenter, 0)
-	if err := svc.client.serviceList(ctx, datacentersPath, &ret); err != nil {
+	if resp, err := svc.client.serviceList(ctx, datacentersPath, &ret); err != nil {
 		return nil, err
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, unexpectedResponseError(resp)
 	}
 	return ret, nil
 }
@@ -106,8 +109,10 @@ func (svc *DatacentersService) List(ctx context.Context) ([]Datacenter, error) {
 func (svc DatacentersService) Get(ctx context.Context, dc string) (*Datacenter, error) {
 	url := datacentersPath + "/" + dc
 	ret := new(Datacenter)
-	if err := svc.client.resourceGet(ctx, url, ret); err != nil {
+	if resp, err := svc.client.resourceGet(ctx, url, ret); err != nil {
 		return nil, err
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, unexpectedResponseError(resp)
 	}
 	return ret, nil
 }

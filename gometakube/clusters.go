@@ -226,8 +226,10 @@ type ClustersService struct {
 func (svc *ClustersService) List(ctx context.Context, project string) ([]Cluster, error) {
 	url := fmt.Sprintf(clusterListURLTpl, project)
 	ret := make([]Cluster, 0)
-	if err := svc.client.serviceList(ctx, url, &ret); err != nil {
+	if resp, err := svc.client.serviceList(ctx, url, &ret); err != nil {
 		return nil, err
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, unexpectedResponseError(resp)
 	}
 	return ret, nil
 }
@@ -245,8 +247,10 @@ func (svc *ClustersService) Create(ctx context.Context, prj, dc string, create *
 		return nil, err
 	}
 	ret := new(Cluster)
-	if err := svc.client.Do(ctx, req, &ret); err != nil {
+	if resp, err := svc.client.Do(ctx, req, &ret); err != nil {
 		return nil, err
+	} else if resp.StatusCode != http.StatusCreated {
+		return nil, unexpectedResponseError(resp)
 	}
 	return ret, nil
 }
@@ -254,5 +258,24 @@ func (svc *ClustersService) Create(ctx context.Context, prj, dc string, create *
 // Delete deletes cluster.
 func (svc *ClustersService) Delete(ctx context.Context, prj, dc, clusterID string) error {
 	url := clusterResourcePath(prj, dc, clusterID)
-	return svc.client.resourceDelete(ctx, url)
+	if resp, err := svc.client.resourceDelete(ctx, url); err != nil {
+		return fmt.Errorf("could not delete cluster: %v", err)
+	} else if resp.StatusCode != http.StatusOK {
+		return unexpectedResponseError(resp)
+	}
+	return nil
+}
+
+// Get returns cluster details.
+func (svc *ClustersService) Get(ctx context.Context, prj, dc, clusterID string) (*Cluster, error) {
+	url := clusterResourcePath(prj, dc, clusterID)
+	ret := new(Cluster)
+	if resp, err := svc.client.resourceGet(ctx, url, ret); err != nil {
+		return nil, err
+	} else if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, unexpectedResponseError(resp)
+	}
+	return ret, nil
 }

@@ -59,8 +59,7 @@ func testAccCheckMetakubeProjectDestroy(s *terraform.State) error {
 		}
 
 		obj, err := client.Projects.Get(context.Background(), rs.Primary.ID)
-		if err == gometakube.ErrForbidden {
-			// HACK: forbidden also means does not exist
+		if err == nil && obj == nil {
 			return nil
 		}
 

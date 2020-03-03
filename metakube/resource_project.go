@@ -51,13 +51,11 @@ func resourceProjectRead(d *schema.ResourceData, meta interface{}) error {
 	c := meta.(*gometakube.Client)
 	obj, err := c.Projects.Get(context.Background(), d.Id())
 	if err != nil {
-		if err == gometakube.ErrForbidden {
-			// HACK: gometakube returns ErrForbidden even for non-existing resources -
-			// handling this as resource absence.
-			d.SetId("")
-			return nil
-		}
 		return err
+	}
+	if obj == nil || obj.DeletionTimestamp != nil {
+		d.SetId("")
+		return nil
 	}
 	d.Set("name", obj.Name)
 	d.Set("labels", obj.Labels)
@@ -76,13 +74,11 @@ func resourceProjectUpdate(d *schema.ResourceData, meta interface{}) error {
 	c := meta.(*gometakube.Client)
 	updated, err := c.Projects.Update(context.Background(), d.Id(), project)
 	if err != nil {
-		if err == gometakube.ErrForbidden {
-			// HACK: gometakube returns ErrForbidden even for non-existing resources -
-			// handling this as resource absence.
-			d.SetId("")
-			return nil
-		}
 		return err
+	}
+	if updated == nil || updated.DeletionTimestamp != nil {
+		d.SetId("")
+		return nil
 	}
 	d.Set("name", updated.Name)
 	d.Set("labels", updated.Name)
@@ -94,7 +90,7 @@ func resourceProjectDelete(d *schema.ResourceData, meta interface{}) error {
 	err := c.Projects.Delete(context.Background(), d.Id())
 	// HACK: gometakube returns ErrForbidden even for non-existing resources -
 	// handling this as resource absence.
-	if err != nil && err != gometakube.ErrForbidden {
+	if err != nil {
 		return err
 	}
 	d.SetId("")

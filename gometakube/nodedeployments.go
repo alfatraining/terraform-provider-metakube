@@ -3,6 +3,7 @@ package gometakube
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 )
 
@@ -77,8 +78,10 @@ func nodeDeploymentsListURL(prj, dc, cls string) string {
 func (svc *NodeDeploymentsService) List(ctx context.Context, prj, dc, cls string) ([]NodeDeployment, error) {
 	url := nodeDeploymentsListURL(prj, dc, cls)
 	ret := make([]NodeDeployment, 0)
-	if err := svc.client.serviceList(ctx, url, &ret); err != nil {
+	if resp, err := svc.client.serviceList(ctx, url, &ret); err != nil {
 		return nil, err
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, unexpectedResponseError(resp)
 	}
 	return ret, nil
 }

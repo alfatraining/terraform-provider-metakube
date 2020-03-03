@@ -3,6 +3,7 @@ package metakube
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
@@ -147,10 +148,27 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 	c := meta.(*gometakube.Client)
 	dc, err := c.Datacenters.Get(context.Background(), d.Get("dc").(string))
 	if err != nil {
-		return fmt.Errorf("couldn't get details on datacenter: %v", err)
+		return fmt.Errorf("could not get details on datacenter: %v", err)
 	}
 	projectID := d.Get("project_id").(string)
-	// TODO: check project is ready.
+	// TODO: proper cancellation
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	project := new(gometakube.Project)
+	for project == nil || project.Status != "Active" {
+		select {
+		case <-ctx.Done():
+			break
+		default:
+			project, err = c.Projects.Get(context.Background(), projectID)
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("could not get project: %v", err)
+	}
+	if project == nil {
+		return fmt.Errorf("project with id: `%s` does not exist", projectID)
+	}
 	cluster, err := c.Clusters.Create(context.Background(), projectID, dc.Spec.Seed, create)
 	if err != nil {
 		return fmt.Errorf("could not create cluster: %v", err)
@@ -160,6 +178,21 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
+	c := meta.(*gometakube.Client)
+	id := d.Id()
+	project := d.Get("project_id").(string)
+	dc, err := c.Datacenters.Get(context.Background(), d.Get("dc").(string))
+	if err != nil {
+		return fmt.Errorf("could not get details on datacenter: %v", err)
+	}
+	cluster, err := c.Clusters.Get(context.Background(), project, dc.Spec.Seed, id)
+	if err != nil {
+		return fmt.Errorf("could not get cluster details: %v", err)
+	}
+	if cluster == nil || cluster.DeletionTimestamp != nil {
+		d.SetId("")
+		return nil
+	}
 	return nil
 }
 
@@ -173,10 +206,10 @@ func resourceClusterDelete(d *schema.ResourceData, meta interface{}) error {
 	project := d.Get("project_id").(string)
 	dc, err := c.Datacenters.Get(context.Background(), d.Get("dc").(string))
 	if err != nil {
-		return fmt.Errorf("couldn't get details on datacenter: %v", err)
+		return fmt.Errorf("could not get details on datacenter: %v", err)
 	}
 	if err := c.Clusters.Delete(context.Background(), project, dc.Spec.Seed, id); err != nil {
-		return fmt.Errorf("couldn't delete cluster: %v", err)
+		return fmt.Errorf("could not delete cluster: %v", err)
 	}
 	return nil
 }
