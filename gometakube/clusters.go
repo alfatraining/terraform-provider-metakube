@@ -253,9 +253,5 @@ func (svc *ClustersService) Create(ctx context.Context, prj, dc string, create *
 // Delete deletes cluster.
 func (svc *ClustersService) Delete(ctx context.Context, prj, dc, clusterID string) error {
 	url := clusterResourcePath(prj, dc, clusterID)
-	req, err := svc.client.NewRequest(http.MethodDelete, url, nil)
-	if err != nil {
-		return err
-	}
-	return svc.client.Do(ctx, req, nil)
+	return svc.client.resourceDelete(ctx, url)
 }

@@ -123,8 +123,21 @@ func (c *Client) serviceList(ctx context.Context, url string, ret interface{}) e
 	if err != nil {
 		return err
 	}
-	if err := c.Do(ctx, req, ret); err != nil {
+	return c.Do(ctx, req, ret)
+}
+
+func (c *Client) resourceDelete(ctx context.Context, url string) error {
+	req, err := c.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
 		return err
 	}
-	return nil
+	return c.Do(ctx, req, nil)
+}
+
+func (c *Client) resourceCreate(ctx context.Context, url string, v, ret interface{}) error {
+	req, err := c.NewRequest(http.MethodPost, url, v)
+	if err != nil {
+		return err
+	}
+	return c.Do(ctx, req, &ret)
 }

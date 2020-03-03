@@ -57,12 +57,8 @@ type ProjectCreateRequest struct {
 
 // Create creates a project.
 func (svc *ProjectsService) Create(ctx context.Context, create *ProjectCreateRequest) (*Project, error) {
-	req, err := svc.client.NewRequest(http.MethodPost, projectsBasePath, create)
-	if err != nil {
-		return nil, err
-	}
 	ret := new(Project)
-	if err := svc.client.Do(ctx, req, &ret); err != nil {
+	if err := svc.client.resourceCreate(ctx, projectsBasePath, create, ret); err != nil {
 		return nil, err
 	}
 	return ret, nil
@@ -96,11 +92,8 @@ func (svc *ProjectsService) Update(ctx context.Context, id string, update *Proje
 
 // Delete deletes projects with given id.
 func (svc *ProjectsService) Delete(ctx context.Context, id string) error {
-	req, err := svc.client.NewRequest(http.MethodDelete, projectResourcePath(id), nil)
-	if err != nil {
-		return err
-	}
-	return svc.client.Do(ctx, req, nil)
+	url := projectResourcePath(id)
+	return svc.client.resourceDelete(ctx, url)
 }
 
 func projectResourcePath(id string) string {
