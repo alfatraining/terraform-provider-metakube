@@ -17,6 +17,7 @@ func Provider() *schema.Provider {
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"metakube_project": resourceProject(),
+			"metakube_cluster": resourceCluster(),
 		},
 		ConfigureFunc: func(d *schema.ResourceData) (interface{}, error) {
 			token := d.Get("token").(string)

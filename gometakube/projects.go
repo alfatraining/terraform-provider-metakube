@@ -66,12 +66,9 @@ func (svc *ProjectsService) Create(ctx context.Context, create *ProjectCreateReq
 
 // Get gets projects with given id.
 func (svc *ProjectsService) Get(ctx context.Context, id string) (*Project, error) {
-	req, err := svc.client.NewRequest(http.MethodGet, projectResourcePath(id), nil)
-	if err != nil {
-		return nil, err
-	}
+	url := projectResourcePath(id)
 	ret := new(Project)
-	if err := svc.client.Do(ctx, req, &ret); err != nil {
+	if err := svc.client.resourceGet(ctx, url, ret); err != nil {
 		return nil, err
 	}
 	return ret, nil

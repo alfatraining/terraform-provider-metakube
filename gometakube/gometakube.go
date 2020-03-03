@@ -141,3 +141,11 @@ func (c *Client) resourceCreate(ctx context.Context, url string, v, ret interfac
 	}
 	return c.Do(ctx, req, &ret)
 }
+
+func (c *Client) resourceGet(ctx context.Context, url string, ret interface{}) error {
+	req, err := c.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	return c.Do(ctx, req, &ret)
+}

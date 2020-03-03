@@ -101,3 +101,13 @@ func (svc *DatacentersService) List(ctx context.Context) ([]Datacenter, error) {
 	}
 	return ret, nil
 }
+
+// Get returns detailed info on datacenter.
+func (svc DatacentersService) Get(ctx context.Context, dc string) (*Datacenter, error) {
+	url := datacentersPath + "/" + dc
+	ret := new(Datacenter)
+	if err := svc.client.resourceGet(ctx, url, ret); err != nil {
+		return nil, err
+	}
+	return ret, nil
+}

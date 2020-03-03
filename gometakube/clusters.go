@@ -8,15 +8,16 @@ import (
 )
 
 type Cluster struct {
-	CreationTimestamp *time.Time        `json:"creationTimestamp"`
-	DeletionTimestamp *time.Time        `json:"deletionTimestamp"`
+	CreationTimestamp *time.Time        `json:"creationTimestamp,omitempty"`
+	DeletionTimestamp *time.Time        `json:"deletionTimestamp,omitempty"`
 	Credential        string            `json:"credential"`
-	ID                string            `json:"id"`
-	Labels            map[string]string `json:"labels"`
+	ID                string            `json:"id,omitempty"`
+	Labels            map[string]string `json:"labels,omitempty"`
 	Name              string            `json:"name"`
 	Spec              *ClusterSpec      `json:"spec"`
-	Status            *ClusterStatus    `json:"status"`
+	Status            *ClusterStatus    `json:"status,omitempty"`
 	Type              string            `json:"type"`
+	SSHKeys           []string          `json:"sshKeys"`
 }
 
 type ClusterStatus struct {
@@ -27,27 +28,27 @@ type ClusterStatus struct {
 type ClusterSpec struct {
 	AuditLogging                        ClusterSpecAuditLogging     `json:"auditLogging"`
 	Cloud                               *ClusterSpecCloud           `json:"cloud"`
-	ClusterNetwork                      *ClusterSpecClusterNetwork  `json:"clusterNetwork"`
+	ClusterNetwork                      *ClusterSpecClusterNetwork  `json:"clusterNetwork,omitempty"`
 	MachineNetworks                     []ClusterSpecMachineNetwork `json:"machineNetworks"`
-	OIDC                                ClusterSpecOIDC             `json:"oidc"`
-	Openshift                           *ClusterSpecOpenShift       `json:"openshift"`
-	Sys11Auth                           ClusterSpecSys11Auth        `json:"sys11auth"`
+	OIDC                                *ClusterSpecOIDC            `json:"oidc,omitempty"`
+	Openshift                           *ClusterSpecOpenShift       `json:"openshift,omitempty"`
+	Sys11Auth                           *ClusterSpecSys11Auth       `json:"sys11auth,omitempty"`
 	UpdateWindow                        *ClusterSpecUpdateWindow    `json:"updateWindow,omitempty"`
-	UsePodSecurityPolicyAdmissionPlugin bool                        `json:"usePodSecurityPolicyAdmissionPlugin"`
-	Version                             string
+	UsePodSecurityPolicyAdmissionPlugin *bool                       `json:"usePodSecurityPolicyAdmissionPlugin"`
+	Version                             string                      `json:"version"`
 }
 
 type ClusterSpecAuditLogging struct {
-	Enabled bool `json:"enabled,omitempty"`
+	Enabled bool `json:"enabled"`
 }
 
 type ClusterSpecCloud struct {
 	AWS          *ClusterSpecCloudAWS          `json:"aws,omitempty"`
 	Azure        *ClusterSpecCloudAzure        `json:"azure,omitempty"`
-	BringYourOwn *ClusterSpecCloudBringYourOwn `json:"bringyourown"`
+	BringYourOwn *ClusterSpecCloudBringYourOwn `json:"bringyourown,omitempty"`
 	DataCenter   string                        `json:"dc"`
-	DigitalOcean *ClusterSpecCloudDigitalOcean `json:"digitalocean"`
-	Fake         *ClusterSpecCloudFake         `json:"fake"`
+	DigitalOcean *ClusterSpecCloudDigitalOcean `json:"digitalocean,omitempty"`
+	Fake         *ClusterSpecCloudFake         `json:"fake,omitempty"`
 	GCP          *ClusterSpecCloudGCP          `json:"gcp,omitempty"`
 	Hetzner      *ClusterSpecCloudHetzner      `json:"hetzner,omitempty"`
 	Kubevirt     *ClusterSpecCloudKubevirt     `json:"kubevirt,omitempty"`
@@ -119,9 +120,9 @@ type ClusterSpecCloudOpenstack struct {
 	FloatingIPPool       string                               `json:"floatingIpPool"`
 	Network              string                               `json:"network"`
 	Password             string                               `json:"password"`
-	RouterID             string                               `json:"routerID"`
+	RouterID             string                               `json:"routerID,omitempty"`
 	SecurityGroups       string                               `json:"securityGroups"`
-	SubnetCIDR           string                               `json:"subnetCIDR"`
+	SubnetCIDR           string                               `json:"subnetCIDR,omitempty"`
 	SubnetID             string                               `json:"subnetID"`
 	Tenant               string                               `json:"tenant"`
 	TenantID             string                               `json:"tenantID"`

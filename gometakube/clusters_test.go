@@ -38,9 +38,9 @@ const (
 			"proxyMode": "ipvs"
 		  },
 		  "version": "1.17.2",
-		  "oidc": {},
-		  "sys11auth": {},
-		  "auditLogging": {}
+		  "auditLogging": {
+			  "enabled": false
+		  }
 		},
 		"status": {
 		  "version": "1.17.2",

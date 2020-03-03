@@ -7,7 +7,7 @@ import (
 )
 
 type NodeDeployment struct {
-	ID                string                `json:"id"`
+	ID                string                `json:"id,omitempty"`
 	Name              string                `json:"name"`
 	CreationTimestamp *time.Time            `json:"creationTimestamp,omitempty"`
 	Spec              NodeDeploymentSpec    `json:"spec"`
@@ -15,16 +15,18 @@ type NodeDeployment struct {
 }
 
 type NodeDeploymentSpec struct {
-	Replicas uint                       `json:"replicas"`
-	Template NodeDeploymentSpecTemplate `json:"template"`
-	Paused   bool                       `json:"paused"`
+	Replicas    uint                       `json:"replicas"`
+	MinReplicas uint                       `json:"minReplicas"`
+	MacReplicas uint                       `json:"maxReplicas"`
+	Template    NodeDeploymentSpecTemplate `json:"template"`
+	Paused      bool                       `json:"paused,omitempty"`
 }
 
 type NodeDeploymentSpecTemplate struct {
 	Cloud           NodeDeploymentSpecTemplateCloud    `json:"cloud"`
 	OperatingSystem NodeDeploymentSpecTemplateOS       `json:"operatingSystem"`
-	Versions        NodeDeploymentSpecTemplateVersions `json:"versions"`
-	Labels          map[string]string                  `json:"labels"`
+	Versions        NodeDeploymentSpecTemplateVersions `json:"versions,omitempty"`
+	Labels          map[string]string                  `json:"labels,omitempty"`
 }
 
 type NodeDeploymentSpecTemplateCloud struct {
@@ -32,11 +34,12 @@ type NodeDeploymentSpecTemplateCloud struct {
 }
 
 type NodeDeploymentSpecTemplateCloudOpenstack struct {
+	FlavorType    string            `json:"flavorType"`
 	Flavor        string            `json:"flavor"`
 	Image         string            `json:"image"`
 	Tags          map[string]string `json:"tags"`
 	UseFloatingIP bool              `json:"useFloatingIP"`
-	// TODO: what foramt for DistSize?
+	// TODO: what is format for DistSize?
 }
 
 type NodeDeploymentSpecTemplateOS struct {
@@ -46,8 +49,8 @@ type NodeDeploymentSpecTemplateOS struct {
 }
 
 type NodeDeploymentSpecTemplateOSOptions struct {
-	DisableAutoUpdate bool `json:"disableAutoUpdate"`
-	DistUpgradeOnBoot bool `json:"distUpgradeOnBoot"`
+	DisableAutoUpdate *bool `json:"disableAutoUpdate,omitempty"`
+	DistUpgradeOnBoot *bool `json:"distUpgradeOnBoot,omitempty"`
 }
 
 type NodeDeploymentSpecTemplateVersions struct {

@@ -72,7 +72,7 @@ var nodeDeployment = NodeDeployment{
 			},
 			OperatingSystem: NodeDeploymentSpecTemplateOS{
 				Ubuntu: &NodeDeploymentSpecTemplateOSOptions{
-					DistUpgradeOnBoot: false,
+					DistUpgradeOnBoot: new(bool),
 				},
 			},
 			Versions: NodeDeploymentSpecTemplateVersions{
