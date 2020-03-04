@@ -43,7 +43,7 @@ type ProjectsService struct {
 // List returns list of all projects.
 func (svc *ProjectsService) List(ctx context.Context) ([]Project, error) {
 	ret := make([]Project, 0)
-	if resp, err := svc.client.serviceList(ctx, projectsBasePath, &ret); err != nil {
+	if resp, err := svc.client.resourceList(ctx, projectsBasePath, &ret); err != nil {
 		return nil, err
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, unexpectedResponseError(resp)

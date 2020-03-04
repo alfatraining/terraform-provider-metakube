@@ -175,3 +175,33 @@ func TestClusters_Get(t *testing.T) {
 		t.Fatalf("want: %+v, got: %+v", want, got)
 	}
 }
+
+func TestClusters_Patch(t *testing.T) {
+	setup()
+	defer teardown()
+
+	prj := "the-prj"
+	dc := "thedc"
+	cls := "thecluster"
+	url := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s", prj, dc, cls)
+	mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPatch)
+		fmt.Fprint(w, clusterJSON)
+	})
+	patch := &PatchClusterRequest{
+		Name: "edited",
+		Labels: map[string]string{
+			"newkey": "newvalue",
+		},
+		Spec: &PatchClusterRequestSpec{
+			AuditLogging: &ClusterSpecAuditLogging{
+				Enabled: false,
+			},
+		},
+	}
+	got, err := client.Clusters.Patch(ctx, prj, dc, cls, patch)
+	testErrNil(t, err)
+	if want := &cluster; !reflect.DeepEqual(want, got) {
+		t.Fatalf("want: %v, got: %v", want, got)
+	}
+}

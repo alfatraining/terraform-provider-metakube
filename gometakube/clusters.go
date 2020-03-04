@@ -226,7 +226,7 @@ type ClustersService struct {
 func (svc *ClustersService) List(ctx context.Context, project string) ([]Cluster, error) {
 	url := fmt.Sprintf(clusterListURLTpl, project)
 	ret := make([]Cluster, 0)
-	if resp, err := svc.client.serviceList(ctx, url, &ret); err != nil {
+	if resp, err := svc.client.resourceList(ctx, url, &ret); err != nil {
 		return nil, err
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, unexpectedResponseError(resp)
@@ -242,12 +242,8 @@ type CreateClusterRequest struct {
 
 // Create creates a cluster.
 func (svc *ClustersService) Create(ctx context.Context, prj, dc string, create *CreateClusterRequest) (*Cluster, error) {
-	req, err := svc.client.NewRequest(http.MethodPost, createClusterPath(prj, dc), create)
-	if err != nil {
-		return nil, err
-	}
 	ret := new(Cluster)
-	if resp, err := svc.client.Do(ctx, req, &ret); err != nil {
+	if resp, err := svc.client.resourceCreate(ctx, createClusterPath(prj, dc), create, ret); err != nil {
 		return nil, err
 	} else if resp.StatusCode != http.StatusCreated {
 		return nil, unexpectedResponseError(resp)
@@ -274,6 +270,35 @@ func (svc *ClustersService) Get(ctx context.Context, prj, dc, clusterID string) 
 		return nil, err
 	} else if resp.StatusCode == http.StatusNotFound {
 		return nil, nil
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, unexpectedResponseError(resp)
+	}
+	return ret, nil
+}
+
+// PatchClusterRequest specifies fields to be changed on cluster.
+// Only patchable fields are specified.
+type PatchClusterRequest struct {
+	Name   string                   `json:"name,omitempty"`
+	Labels map[string]string        `json:"labels,omitempty"`
+	Spec   *PatchClusterRequestSpec `json:"spec,omitempty"`
+}
+
+// PatchClusterRequestSpec fields allowed to change on cluster spec in place.
+type PatchClusterRequestSpec struct {
+	AuditLogging *ClusterSpecAuditLogging `json:"auditLogging,omitempty"`
+}
+
+// Patch updates cluster.
+func (svc *ClustersService) Patch(ctx context.Context, prj, dc, clusterID string, patch *PatchClusterRequest) (*Cluster, error) {
+	url := clusterResourcePath(prj, dc, clusterID)
+	ret := new(Cluster)
+	req, err := svc.client.NewRequest(http.MethodPatch, url, patch)
+	if err != nil {
+		return nil, err
+	}
+	if resp, err := svc.client.Do(ctx, req, &ret); err != nil {
+		return nil, err
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, unexpectedResponseError(resp)
 	}

@@ -108,7 +108,7 @@ func (c *Client) Do(ctx context.Context, req *http.Request, out interface{}) (*h
 	return resp, nil
 }
 
-func (c *Client) serviceList(ctx context.Context, url string, ret interface{}) (*http.Response, error) {
+func (c *Client) resourceList(ctx context.Context, url string, ret interface{}) (*http.Response, error) {
 	req, err := c.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err

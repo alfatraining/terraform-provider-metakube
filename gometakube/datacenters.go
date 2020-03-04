@@ -97,7 +97,7 @@ type DatacentersService struct {
 // List requests all datacenters.
 func (svc *DatacentersService) List(ctx context.Context) ([]Datacenter, error) {
 	ret := make([]Datacenter, 0)
-	if resp, err := svc.client.serviceList(ctx, datacentersPath, &ret); err != nil {
+	if resp, err := svc.client.resourceList(ctx, datacentersPath, &ret); err != nil {
 		return nil, err
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, unexpectedResponseError(resp)
