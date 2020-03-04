@@ -24,6 +24,7 @@ type Client struct {
 	Projects        *ProjectsService
 	Clusters        *ClustersService
 	NodeDeployments *NodeDeploymentsService
+	Images          *ImagesService
 }
 
 // CreateOpt represent api clients construction option.
@@ -71,6 +72,7 @@ func NewClient(opt CreateOpt) *Client {
 	client.Projects = &ProjectsService{client}
 	client.Clusters = &ClustersService{client}
 	client.NodeDeployments = &NodeDeploymentsService{client}
+	client.Images = &ImagesService{client}
 
 	return client
 }
@@ -108,32 +110,32 @@ func (c *Client) Do(ctx context.Context, req *http.Request, out interface{}) (*h
 	return resp, nil
 }
 
-func (c *Client) resourceList(ctx context.Context, url string, ret interface{}) (*http.Response, error) {
-	req, err := c.NewRequest(http.MethodGet, url, nil)
+func (c *Client) resourceList(ctx context.Context, path string, ret interface{}) (*http.Response, error) {
+	req, err := c.NewRequest(http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
 	}
 	return c.Do(ctx, req, ret)
 }
 
-func (c *Client) resourceDelete(ctx context.Context, url string) (*http.Response, error) {
-	req, err := c.NewRequest(http.MethodDelete, url, nil)
+func (c *Client) resourceDelete(ctx context.Context, path string) (*http.Response, error) {
+	req, err := c.NewRequest(http.MethodDelete, path, nil)
 	if err != nil {
 		return nil, err
 	}
 	return c.Do(ctx, req, nil)
 }
 
-func (c *Client) resourceCreate(ctx context.Context, url string, v, ret interface{}) (*http.Response, error) {
-	req, err := c.NewRequest(http.MethodPost, url, v)
+func (c *Client) resourceCreate(ctx context.Context, path string, v, ret interface{}) (*http.Response, error) {
+	req, err := c.NewRequest(http.MethodPost, path, v)
 	if err != nil {
 		return nil, err
 	}
 	return c.Do(ctx, req, &ret)
 }
 
-func (c *Client) resourceGet(ctx context.Context, url string, ret interface{}) (*http.Response, error) {
-	req, err := c.NewRequest(http.MethodGet, url, nil)
+func (c *Client) resourceGet(ctx context.Context, path string, ret interface{}) (*http.Response, error) {
+	req, err := c.NewRequest(http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
 	}
