@@ -1,4 +1,5 @@
 .terraform
+.env
 crash.log
 
 terraform-provider-metakube

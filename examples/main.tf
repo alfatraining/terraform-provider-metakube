@@ -18,7 +18,6 @@ resource "metakube_cluster" "my-cluster" {
   dc      = "syseleven-dbl1" // openstack datacenter
 
   // openstack 
-  tenant            = "syseleveneigenbedarf-syseleven-ext-spearce"
   provider_username = "" // sensitive
   provider_password = "" // sensitive
 

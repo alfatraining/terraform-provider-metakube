@@ -42,12 +42,6 @@ func resourceCluster() *schema.Resource {
 				ForceNew:     true,
 				ValidateFunc: validation.NoZeroValues,
 			},
-			"tenant": {
-				Type:         schema.TypeString,
-				Required:     true,
-				ForceNew:     true,
-				ValidateFunc: validation.NoZeroValues,
-			},
 			"provider_username": {
 				Type:         schema.TypeString,
 				Required:     true,
@@ -125,7 +119,6 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 					Version: d.Get("version").(string),
 					Cloud: &gometakube.ClusterSpecCloud{
 						OpenStack: &gometakube.ClusterSpecCloudOpenstack{
-							Tenant:         d.Get("tenant").(string),
 							Domain:         "Default",
 							Username:       d.Get("provider_username").(string),
 							Password:       d.Get("provider_password").(string),
@@ -186,7 +179,6 @@ func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
 		d.Set("name", obj.Name)
 		d.Set("version", obj.Spec.Version)
 		d.Set("dc", obj.Spec.Cloud.DataCenter)
-		d.Set("tenant", obj.Spec.Cloud.OpenStack.Tenant)
 		// TODO: update nodepool vals
 		return nil
 	}

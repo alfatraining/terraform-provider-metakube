@@ -35,7 +35,6 @@ resource "metakube_cluster" "bar" {
 	name = "bar"
 	version = "1.17.3"
 	dc = "%s"
-	tenant = "syseleveneigenbedarf-syseleven-%s"
 	provider_username = "%s"
 	provider_password = "%s"
 
@@ -50,7 +49,7 @@ resource "metakube_cluster" "bar" {
 	}
 
 }
-`, project, dc, username, username, password)
+`, project, dc, username, password)
 }
 
 func TestAccMetakubeCluster_Basic(t *testing.T) {
@@ -79,7 +78,6 @@ func TestAccMetakubeCluster_Basic(t *testing.T) {
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "name", "bar"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "version", "1.17.3"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "dc", testDC),
-					resource.TestCheckResourceAttr("metakube_cluster.bar", "tenant", "syseleveneigenbedarf-syseleven-"+testProviderUsername),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "provider_username", testProviderUsername),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "provider_password", testProviderPassword),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodepool.#", "1"),
