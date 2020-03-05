@@ -3,6 +3,7 @@ package metakube
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
@@ -130,7 +131,13 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 	if !imageValid {
-		return fmt.Errorf("image `%s` is not avaialable", imageName)
+		names := make([]string, 0)
+		for _, image := range images {
+			names = append(names, image.Name)
+		}
+		return fmt.Errorf("image `%s` is not avaialable. Available in specified datacenter:\n%s",
+			imageName,
+			strings.Join(names, "\n"))
 	}
 	create := &gometakube.CreateClusterRequest{
 		Cluster: gometakube.Cluster{
@@ -221,6 +228,7 @@ func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
+	oldName, newName := d.GetChange("name")
 	c := meta.(*gometakube.Client)
 	projectID := d.Get("project_id").(string)
 	dc, err := c.Datacenters.Get(context.Background(), d.Get("dc").(string))
@@ -237,11 +245,12 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 		return nil
 	}
 	patch := &gometakube.PatchClusterRequest{
-		Name: d.Get("name").(string),
+		Name: newName.(string),
 	}
 	_, err = c.Clusters.Patch(context.Background(), projectID, dc.Spec.Seed, d.Id(), patch)
 	if err != nil {
-		return fmt.Errorf("could not patch cluster: %v", err)
+		d.Set("name", oldName)
+		return fmt.Errorf("could not patch cluster (is cluster provisioning compete?). error: %v", err)
 	}
 	return nil
 	// TODO: patch nodepool if nodepool's name changes
