@@ -60,6 +60,7 @@ func TestImages_List(t *testing.T) {
 	dcName := "dc"
 	username := "theuser"
 	password := "pwd"
+	domain := "Default"
 	mux.HandleFunc("/api/v1/providers/openstack/images", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodGet)
 		if want, got := dcName, r.Header.Get("DatacenterName"); want != got {
@@ -71,10 +72,13 @@ func TestImages_List(t *testing.T) {
 		if want, got := password, r.Header.Get("Password"); want != got {
 			t.Fatalf("want Password: %v, got: %v", want, got)
 		}
+		if want, got := domain, r.Header.Get("Domain"); want != got {
+			t.Fatalf("want Domain: %v, got: %v", want, got)
+		}
 		fmt.Fprintf(w, "[%s]", imageJSON)
 	})
 
-	got, err := client.Images.List(ctx, dcName, username, password)
+	got, err := client.Images.List(ctx, dcName, domain, username, password)
 	testErrNil(t, err)
 	if want := []Image{image}; !reflect.DeepEqual(want, got) {
 		t.Fatalf("want: %+v, got: %+v", want, got)

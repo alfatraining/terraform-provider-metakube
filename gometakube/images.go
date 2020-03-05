@@ -39,7 +39,7 @@ type ImagesService struct {
 }
 
 // List returns list of images.
-func (svc *ImagesService) List(ctx context.Context, dc, username, password string) ([]Image, error) {
+func (svc *ImagesService) List(ctx context.Context, dc, domain, username, password string) ([]Image, error) {
 	req, err := svc.client.NewRequest(http.MethodGet, imagesListPath, nil)
 	if err != nil {
 		return nil, err
@@ -47,6 +47,7 @@ func (svc *ImagesService) List(ctx context.Context, dc, username, password strin
 	req.Header.Set("DatacenterName", dc)
 	req.Header.Set("Username", username)
 	req.Header.Set("Password", password)
+	req.Header.Set("Domain", domain)
 	ret := make([]Image, 0)
 	if resp, err := svc.client.Do(ctx, req, &ret); err != nil {
 		return nil, err

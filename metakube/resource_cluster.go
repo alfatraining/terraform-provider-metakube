@@ -38,11 +38,13 @@ func resourceCluster() *schema.Resource {
 			"dc": {
 				Type:         schema.TypeString,
 				Required:     true,
+				ForceNew:     true,
 				ValidateFunc: validation.NoZeroValues,
 			},
 			"tenant": {
 				Type:         schema.TypeString,
 				Required:     true,
+				ForceNew:     true,
 				ValidateFunc: validation.NoZeroValues,
 			},
 			"username": {
@@ -77,21 +79,25 @@ func resourceCluster() *schema.Resource {
 						"flavor_type": {
 							Type:         schema.TypeString,
 							Required:     true,
+							ForceNew:     true,
 							ValidateFunc: validation.StringInSlice([]string{"Local Storage", "Network Storage"}, false),
 						},
 						"flavor": {
 							Type:         schema.TypeString,
 							Required:     true,
+							ForceNew:     true,
 							ValidateFunc: validation.NoZeroValues,
 						},
-						"image": {
+						"distribution": {
 							Type:         schema.TypeString,
 							Required:     true,
+							ForceNew:     true,
 							ValidateFunc: validation.NoZeroValues,
 						},
 						"use_floating_ip": {
 							Type:     schema.TypeBool,
 							Optional: true,
+							ForceNew: true,
 							Default:  true,
 						},
 					},
@@ -102,7 +108,30 @@ func resourceCluster() *schema.Resource {
 }
 
 func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
+	c := meta.(*gometakube.Client)
+	dc, err := c.Datacenters.Get(context.Background(), d.Get("dc").(string))
+	if err != nil {
+		return fmt.Errorf("could not get details on datacenter: %v", err)
+	}
+	username := d.Get("username").(string)
+	password := d.Get("password").(string)
+	images, err := c.Images.List(context.Background(), dc.Metadata.Name, "Default", username, password)
+	if err != nil {
+		return fmt.Errorf("could not get list of images: %v", err)
+	}
 	pool := d.Get("node_pool").([]interface{})[0].(map[string]interface{})
+	// TODO: extract to func
+	imageName := ""
+	distribution := pool["distribution"].(string)
+	for _, image := range images {
+		if image.Metadata.Distribution == distribution {
+			imageName = image.Name
+			break
+		}
+	}
+	if imageName == "" {
+		return fmt.Errorf("could not find image for distribution: %v", distribution)
+	}
 	create := &gometakube.CreateClusterRequest{
 		Cluster: gometakube.Cluster{
 			Name: d.Get("name").(string),
@@ -112,8 +141,8 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 					OpenStack: &gometakube.ClusterSpecCloudOpenstack{
 						Tenant:         d.Get("tenant").(string),
 						Domain:         "Default",
-						Username:       d.Get("username").(string),
-						Password:       d.Get("password").(string),
+						Username:       username,
+						Password:       password,
 						FloatingIPPool: "ext-net",
 					},
 					DataCenter: d.Get("dc").(string),
@@ -131,7 +160,7 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 						Openstack: gometakube.NodeDeploymentSpecTemplateCloudOpenstack{
 							FlavorType:    pool["flavor_type"].(string),
 							Flavor:        pool["flavor"].(string),
-							Image:         pool["image"].(string),
+							Image:         imageName,
 							UseFloatingIP: pool["use_floating_ip"].(bool),
 						},
 					},
@@ -144,11 +173,6 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 				Replicas: uint(pool["replicas"].(int)),
 			},
 		},
-	}
-	c := meta.(*gometakube.Client)
-	dc, err := c.Datacenters.Get(context.Background(), d.Get("dc").(string))
-	if err != nil {
-		return fmt.Errorf("could not get details on datacenter: %v", err)
 	}
 	projectID := d.Get("project_id").(string)
 	// TODO: proper cancellation
@@ -197,7 +221,30 @@ func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
+	c := meta.(*gometakube.Client)
+	projectID := d.Get("project_id").(string)
+	dc, err := c.Datacenters.Get(context.Background(), d.Get("dc").(string))
+	if err != nil {
+		return fmt.Errorf("could not get details on datacenter: %v", err)
+	}
+	cluster, err := c.Clusters.Get(context.Background(), projectID, dc.Spec.Seed, d.Id())
+	if err != nil {
+		return fmt.Errorf("could not retrieve cluster: %v", err)
+	}
+	if cluster == nil {
+		// Cluster was deleted
+		d.SetId("")
+		return nil
+	}
+	patch := &gometakube.PatchClusterRequest{
+		Name: d.Get("name").(string),
+	}
+	_, err = c.Clusters.Patch(context.Background(), projectID, dc.Spec.Seed, d.Id(), patch)
+	if err != nil {
+		return fmt.Errorf("could not patch cluster: %v", err)
+	}
 	return nil
+	// TODO: patch nodepool if nodepool's name changes
 }
 
 func resourceClusterDelete(d *schema.ResourceData, meta interface{}) error {
