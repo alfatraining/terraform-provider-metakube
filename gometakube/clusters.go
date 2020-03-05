@@ -217,6 +217,10 @@ func clusterResourcePath(prj, dc, clusterID string) string {
 	return fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s", prj, dc, clusterID)
 }
 
+func clusterResourceHealthPath(prj, dc, clusterID string) string {
+	return fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/health", prj, dc, clusterID)
+}
+
 // ClustersService handles comminication with cluster related endpoints.
 type ClustersService struct {
 	client *Client
@@ -297,7 +301,39 @@ func (svc *ClustersService) Patch(ctx context.Context, prj, dc, clusterID string
 	if err != nil {
 		return nil, err
 	}
-	if resp, err := svc.client.Do(ctx, req, &ret); err != nil {
+	if resp, err := svc.client.Do(ctx, req, ret); err != nil {
+		return nil, err
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, unexpectedResponseError(resp)
+	}
+	return ret, nil
+}
+
+type ClusterHealth struct {
+	APIServer                    uint8 `json:"apiserver"`
+	CloudProviderInfrastructure  uint8 `json:"cloudProviderInfrastructure"`
+	Controller                   uint8 `json:"controller"`
+	Etcd                         uint8 `json:"etcd"`
+	MachineController            uint8 `json:"machineController"`
+	Scheduler                    uint8 `json:"scheduler"`
+	UserClusterControllerManager uint8 `json:"userClusterControllerManager"`
+}
+
+// Healthy returns whether all cluster components are ready.
+func (h *ClusterHealth) Healthy() bool {
+	return (h.APIServer & h.CloudProviderInfrastructure &
+		h.Controller & h.Etcd & h.MachineController &
+		h.Scheduler & h.UserClusterControllerManager) == 1
+}
+
+func (svc *ClustersService) Health(ctx context.Context, prj, dc, id string) (*ClusterHealth, error) {
+	path := clusterResourceHealthPath(prj, dc, id)
+	ret := new(ClusterHealth)
+	req, err := svc.client.NewRequest(http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+	if resp, err := svc.client.Do(ctx, req, ret); err != nil {
 		return nil, err
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, unexpectedResponseError(resp)

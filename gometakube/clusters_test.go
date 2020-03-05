@@ -205,3 +205,46 @@ func TestClusters_Patch(t *testing.T) {
 		t.Fatalf("want: %v, got: %v", want, got)
 	}
 }
+
+const clusterHealthJSON = `
+  {
+	"apiserver": 0,
+	"cloudProviderInfrastructure": 0,
+	"controller": 0,
+	"etcd": 0,
+	"machineController": 0,
+	"scheduler": 0,
+	"userClusterControllerManager": 0
+  }
+`
+
+var clusterHealth = ClusterHealth{
+	APIServer:                    0,
+	CloudProviderInfrastructure:  0,
+	Controller:                   0,
+	Etcd:                         0,
+	MachineController:            0,
+	Scheduler:                    0,
+	UserClusterControllerManager: 0,
+}
+
+func TestClusters_Health(t *testing.T) {
+	setup()
+	defer teardown()
+
+	prj := "the-proj"
+	dc := "thedc"
+	cls := "thecluster"
+	url := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/health", prj, dc, cls)
+	mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodGet)
+		fmt.Fprint(w, clusterHealthJSON)
+	})
+
+	got, err := client.Clusters.Health(ctx, prj, dc, cls)
+	testErrNil(t, err)
+
+	if want := &clusterHealth; !reflect.DeepEqual(want, got) {
+		t.Fatalf("want: %+v, err: %+v", want, got)
+	}
+}
