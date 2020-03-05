@@ -88,7 +88,7 @@ func resourceCluster() *schema.Resource {
 							ForceNew:     true,
 							ValidateFunc: validation.NoZeroValues,
 						},
-						"distribution": {
+						"image": {
 							Type:         schema.TypeString,
 							Required:     true,
 							ForceNew:     true,
@@ -121,16 +121,16 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 	}
 	pool := d.Get("node_pool").([]interface{})[0].(map[string]interface{})
 	// TODO: extract to func
-	imageName := ""
-	distribution := pool["distribution"].(string)
+	imageName := pool["image"].(string)
+	imageValid := false
 	for _, image := range images {
-		if image.Metadata.Distribution == distribution {
-			imageName = image.Name
+		if image.Name == imageName {
+			imageValid = true
 			break
 		}
 	}
-	if imageName == "" {
-		return fmt.Errorf("could not find image for distribution: %v", distribution)
+	if !imageValid {
+		return fmt.Errorf("image `%s` is not avaialable", imageName)
 	}
 	create := &gometakube.CreateClusterRequest{
 		Cluster: gometakube.Cluster{

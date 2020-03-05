@@ -28,7 +28,7 @@ resource "metakube_cluster" "my-cluster" {
 
     flavor_type     = "Local Storage"
     flavor          = "l1.small"
-    distribution    = "ubuntu-bionic"
+    image           = "Ubuntu Bionic 18.04 (2020-03-05)"
     use_floating_ip = false
   }
 }
