@@ -93,7 +93,7 @@ func TestProjects_Create(t *testing.T) {
 	setup()
 	defer teardown()
 
-	createRequest := &ProjectCreateRequest{
+	createRequest := &ProjectCreateAndUpdateRequest{
 		Labels: map[string]string{
 			"additionalProp1": "string",
 			"additionalProp2": "string",
@@ -103,7 +103,7 @@ func TestProjects_Create(t *testing.T) {
 	}
 	mux.HandleFunc("/api/v1/projects", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodPost)
-		v := &ProjectCreateRequest{}
+		v := &ProjectCreateAndUpdateRequest{}
 		if err := json.NewDecoder(r.Body).Decode(v); err != nil {
 			t.Fatalf("unexpected request parse error: %v", err)
 		}
@@ -154,7 +154,7 @@ func TestProject_Update(t *testing.T) {
 	setup()
 	defer teardown()
 
-	update := ProjectCreateRequest{
+	update := ProjectCreateAndUpdateRequest{
 		Name: "name",
 		Labels: map[string]string{
 			"label1": "string",
@@ -162,7 +162,7 @@ func TestProject_Update(t *testing.T) {
 	}
 	mux.HandleFunc("/api/v1/projects/"+project.ID, func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodPut)
-		got := &ProjectCreateRequest{}
+		got := &ProjectCreateAndUpdateRequest{}
 		if err := json.NewDecoder(r.Body).Decode(got); err != nil {
 			t.Fatalf("unexpected request parse error: %v", err)
 		}

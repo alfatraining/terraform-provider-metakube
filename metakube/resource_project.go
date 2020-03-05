@@ -31,22 +31,17 @@ func resourceProject() *schema.Resource {
 }
 
 func resourceProjectCreate(d *schema.ResourceData, meta interface{}) error {
-	create := &gometakube.ProjectCreateRequest{}
-	create.Name = d.Get("name").(string)
-	if attr, ok := d.GetOk("labels"); ok {
-		create.Labels = make(map[string]string)
-		for k, v := range attr.(map[string]interface{}) {
-			create.Labels[k] = v.(string)
-		}
+	create := &gometakube.ProjectCreateAndUpdateRequest{
+		Name:   d.Get("name").(string),
+		Labels: projectLabelsMap(d),
 	}
-	c := meta.(*gometakube.Client)
-	project, err := c.Projects.Create(context.Background(), create)
+	client := meta.(*gometakube.Client)
+	project, err := client.Projects.Create(context.Background(), create)
 	if err != nil {
 		return fmt.Errorf("could not create project: %v", err)
 	}
 	d.SetId(project.ID)
-
-	return waitProjectCreatedAndActive(c, project.ID)
+	return waitProjectCreatedAndActive(client, project.ID)
 }
 
 func resourceProjectRead(d *schema.ResourceData, meta interface{}) error {
@@ -56,6 +51,7 @@ func resourceProjectRead(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 	if obj == nil || obj.DeletionTimestamp != nil {
+		// Project was deleted.
 		d.SetId("")
 		return nil
 	}
@@ -65,37 +61,32 @@ func resourceProjectRead(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceProjectUpdate(d *schema.ResourceData, meta interface{}) error {
-	project := &gometakube.ProjectCreateRequest{}
-	project.Name = d.Get("name").(string)
-	if attr, ok := d.GetOk("labels"); ok {
-		project.Labels = make(map[string]string)
-		for k, v := range attr.(map[string]interface{}) {
-			project.Labels[k] = v.(string)
-		}
+	d.Partial(true)
+
+	update := &gometakube.ProjectCreateAndUpdateRequest{
+		Name:   d.Get("name").(string),
+		Labels: projectLabelsMap(d),
 	}
-	c := meta.(*gometakube.Client)
-	updated, err := c.Projects.Update(context.Background(), d.Id(), project)
+	client := meta.(*gometakube.Client)
+	updated, err := client.Projects.Update(context.Background(), d.Id(), update)
 	if err != nil {
-		oldName, _ := d.GetChange("name")
-		d.Set("name", oldName)
-		oldLabels, _ := d.GetChange("labels")
-		d.Set("labels", oldLabels)
 		return err
 	}
 	if updated == nil || updated.DeletionTimestamp != nil {
+		// Project was deleted.
 		d.SetId("")
 		return nil
 	}
-	d.Set("name", updated.Name)
-	d.Set("labels", updated.Name)
+	d.SetPartial("name")
+	d.SetPartial("labels")
+
+	d.Partial(false)
 	return nil
 }
 
 func resourceProjectDelete(d *schema.ResourceData, meta interface{}) error {
 	c := meta.(*gometakube.Client)
 	err := c.Projects.Delete(context.Background(), d.Id())
-	// HACK: gometakube returns ErrForbidden even for non-existing resources -
-	// handling this as resource absence.
 	if err != nil {
 		return err
 	}
@@ -119,4 +110,14 @@ func waitProjectCreatedAndActive(client *gometakube.Client, id string) error {
 		n++
 	}
 	return nil
+}
+
+func projectLabelsMap(d *schema.ResourceData) (ret map[string]string) {
+	if attr, ok := d.GetOk("labels"); ok {
+		ret := make(map[string]string)
+		for k, v := range attr.(map[string]interface{}) {
+			ret[k] = v.(string)
+		}
+	}
+	return ret
 }
