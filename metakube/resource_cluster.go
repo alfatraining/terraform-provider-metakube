@@ -48,13 +48,13 @@ func resourceCluster() *schema.Resource {
 				ForceNew:     true,
 				ValidateFunc: validation.NoZeroValues,
 			},
-			"username": {
+			"provider_username": {
 				Type:         schema.TypeString,
 				Required:     true,
 				Sensitive:    true,
 				ValidateFunc: validation.NoZeroValues,
 			},
-			"password": {
+			"provider_password": {
 				Type:         schema.TypeString,
 				Required:     true,
 				Sensitive:    true,
@@ -114,9 +114,9 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return fmt.Errorf("could not get details on datacenter: %v", err)
 	}
-	username := d.Get("username").(string)
-	password := d.Get("password").(string)
-	images, err := c.Images.List(context.Background(), dc.Metadata.Name, "Default", username, password)
+	providerUsername := d.Get("provider_username").(string)
+	providerPassword := d.Get("provider_password").(string)
+	images, err := c.Images.List(context.Background(), dc.Metadata.Name, "Default", providerUsername, providerPassword)
 	if err != nil {
 		return fmt.Errorf("could not get list of images: %v", err)
 	}
@@ -148,8 +148,8 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 					OpenStack: &gometakube.ClusterSpecCloudOpenstack{
 						Tenant:         d.Get("tenant").(string),
 						Domain:         "Default",
-						Username:       username,
-						Password:       password,
+						Username:       providerUsername,
+						Password:       providerPassword,
 						FloatingIPPool: "ext-net",
 					},
 					DataCenter: d.Get("dc").(string),
