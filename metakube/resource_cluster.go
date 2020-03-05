@@ -210,30 +210,32 @@ func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
-	oldName, newName := d.GetChange("name")
-	c := meta.(*gometakube.Client)
-	projectID := d.Get("project_id").(string)
-	dc, err := c.Datacenters.Get(context.Background(), d.Get("dc").(string))
-	if err != nil {
-		return fmt.Errorf("could not get details on datacenter: %v", err)
+	d.Partial(true)
+	if d.HasChange("name") {
+		c := meta.(*gometakube.Client)
+		projectID := d.Get("project_id").(string)
+		dc, err := c.Datacenters.Get(context.Background(), d.Get("dc").(string))
+		if err != nil {
+			return fmt.Errorf("could not get details on datacenter: %v", err)
+		}
+		cluster, err := c.Clusters.Get(context.Background(), projectID, dc.Spec.Seed, d.Id())
+		if err != nil {
+			return fmt.Errorf("could not retrieve cluster: %v", err)
+		}
+		if cluster == nil {
+			// Cluster was deleted
+			return nil
+		}
+		patch := &gometakube.PatchClusterRequest{
+			Name: d.Get("name").(string),
+		}
+		_, err = c.Clusters.Patch(context.Background(), projectID, dc.Spec.Seed, d.Id(), patch)
+		if err != nil {
+			return fmt.Errorf("could not patch cluster (is cluster provisioning compete?). error: %v", err)
+		}
+		d.SetPartial("name")
 	}
-	cluster, err := c.Clusters.Get(context.Background(), projectID, dc.Spec.Seed, d.Id())
-	if err != nil {
-		return fmt.Errorf("could not retrieve cluster: %v", err)
-	}
-	if cluster == nil {
-		// Cluster was deleted
-		d.SetId("")
-		return nil
-	}
-	patch := &gometakube.PatchClusterRequest{
-		Name: newName.(string),
-	}
-	_, err = c.Clusters.Patch(context.Background(), projectID, dc.Spec.Seed, d.Id(), patch)
-	if err != nil {
-		d.Set("name", oldName)
-		return fmt.Errorf("could not patch cluster (is cluster provisioning compete?). error: %v", err)
-	}
+	d.Partial(false)
 	return nil
 	// TODO: patch nodepool if nodepool's name changes
 }
