@@ -59,16 +59,16 @@ type ClusterSpecCloud struct {
 
 type ClusterSpecCloudAWS struct {
 	AccessKeyId            string                               `json:"accessKeyId"`
-	availabilityZone       string                               `json:"availabilityZone"`
-	credentialsReference   *ClusterSpecCloudCredentialReference `json:"credentialsReference"`
-	instanceProfileName    string                               `json:"instanceProfileName"`
-	openstackBillingTenant string                               `json:"openstackBillingTenant"`
-	roleARN                string                               `json:"roleARN"`
-	roleName               string                               `json:"roleName"`
-	routeTableId           string                               `json:"routeTableId"`
-	secretAccessKey        string                               `json:"secretAccessKey"`
-	securityGroupID        string                               `json:"securityGroupID"`
-	vpcId                  string                               `json:"vpcId"`
+	AvailabilityZone       string                               `json:"availabilityZone"`
+	CredentialsReference   *ClusterSpecCloudCredentialReference `json:"credentialsReference"`
+	InstanceProfileName    string                               `json:"instanceProfileName"`
+	OpenstackBillingTenant string                               `json:"openstackBillingTenant"`
+	RoleARN                string                               `json:"roleARN"`
+	RoleName               string                               `json:"roleName"`
+	RouteTableId           string                               `json:"routeTableId"`
+	SecretAccessKey        string                               `json:"secretAccessKey"`
+	SecurityGroupID        string                               `json:"securityGroupID"`
+	VPCId                  string                               `json:"vpcId"`
 }
 
 type ClusterSpecCloudAzure struct {
