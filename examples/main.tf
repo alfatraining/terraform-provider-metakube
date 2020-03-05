@@ -33,7 +33,7 @@ resource "metakube_cluster" "my-cluster" {
   provider_username = "" // sensitive
   provider_password = "" // sensitive
 
-  node_pool {
+  nodepool {
     name     = "my-cluster-nodepool-one"
     replicas = 2
 

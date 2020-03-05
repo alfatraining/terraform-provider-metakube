@@ -60,7 +60,7 @@ func resourceCluster() *schema.Resource {
 				Sensitive:    true,
 				ValidateFunc: validation.NoZeroValues,
 			},
-			"node_pool": {
+			"nodepool": {
 				Type:     schema.TypeList,
 				Required: true,
 				MinItems: 1,
@@ -120,7 +120,7 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return fmt.Errorf("could not get list of images: %v", err)
 	}
-	pool := d.Get("node_pool").([]interface{})[0].(map[string]interface{})
+	pool := d.Get("nodepool").([]interface{})[0].(map[string]interface{})
 	// TODO: extract to func
 	imageName := pool["image"].(string)
 	imageValid := false
@@ -182,30 +182,12 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 		},
 	}
 	projectID := d.Get("project_id").(string)
-	// TODO: proper cancellation
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	project := new(gometakube.Project)
-	for project == nil || project.Status != "Active" {
-		select {
-		case <-ctx.Done():
-			break
-		default:
-			project, err = c.Projects.Get(context.Background(), projectID)
-		}
-	}
-	if err != nil {
-		return fmt.Errorf("could not get project: %v", err)
-	}
-	if project == nil {
-		return fmt.Errorf("project with id: `%s` does not exist", projectID)
-	}
 	cluster, err := c.Clusters.Create(context.Background(), projectID, dc.Spec.Seed, create)
 	if err != nil {
 		return fmt.Errorf("could not create cluster: %v", err)
 	}
 	d.SetId(cluster.ID)
-	return nil
+	return waitForClusterCreate(c, projectID, dc.Spec.Seed, cluster.ID)
 }
 
 func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
@@ -266,6 +248,24 @@ func resourceClusterDelete(d *schema.ResourceData, meta interface{}) error {
 	}
 	if err := c.Clusters.Delete(context.Background(), project, dc.Spec.Seed, id); err != nil {
 		return fmt.Errorf("could not delete cluster: %v", err)
+	}
+	return nil
+}
+
+func waitForClusterCreate(client *gometakube.Client, prj, dc, id string) error {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	timeout := 10 * 60
+	n := 0
+	for range ticker.C {
+		h, _ := client.Clusters.Health(context.Background(), prj, dc, id)
+		if h != nil && h.Healthy() {
+			return nil
+		}
+		if n > timeout {
+			return fmt.Errorf("Timeout waiting to create cluster")
+		}
+		n++
 	}
 	return nil
 }

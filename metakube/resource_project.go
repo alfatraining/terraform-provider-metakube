@@ -3,6 +3,7 @@ package metakube
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"gitlab.com/furkhat/terraform-provider-metakube/gometakube"
@@ -44,7 +45,8 @@ func resourceProjectCreate(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("could not create project: %v", err)
 	}
 	d.SetId(project.ID)
-	return nil
+
+	return waitProjectCreatedAndActive(c, project.ID)
 }
 
 func resourceProjectRead(d *schema.ResourceData, meta interface{}) error {
@@ -98,5 +100,23 @@ func resourceProjectDelete(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 	d.SetId("")
+	return nil
+}
+
+func waitProjectCreatedAndActive(client *gometakube.Client, id string) error {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	timeout := 120
+	n := 0
+	for range ticker.C {
+		project, _ := client.Projects.Get(context.Background(), id)
+		if project != nil && project.Status == "Active" {
+			return nil
+		}
+		if n > timeout {
+			return fmt.Errorf("Timeout waiting for project activation")
+		}
+		n++
+	}
 	return nil
 }

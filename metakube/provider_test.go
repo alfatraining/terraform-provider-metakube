@@ -20,8 +20,8 @@ func init() {
 	}
 }
 
-func testAccPreCheck(t *testing.T) {
-	if e := "METAKUBE_API_TOKEN"; os.Getenv(e) == "" {
+func testEnvSet(t *testing.T, e string) {
+	if os.Getenv(e) == "" {
 		t.Fatalf("%s must be set for acceptance tests", e)
 	}
 }
