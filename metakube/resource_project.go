@@ -74,6 +74,10 @@ func resourceProjectUpdate(d *schema.ResourceData, meta interface{}) error {
 	c := meta.(*gometakube.Client)
 	updated, err := c.Projects.Update(context.Background(), d.Id(), project)
 	if err != nil {
+		oldName, _ := d.GetChange("name")
+		d.Set("name", oldName)
+		oldLabels, _ := d.GetChange("labels")
+		d.Set("labels", oldLabels)
 		return err
 	}
 	if updated == nil || updated.DeletionTimestamp != nil {
