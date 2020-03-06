@@ -86,8 +86,8 @@ resource "metakube_cluster" "bar" {
 		replicas = 1
 
 		flavor = "m1c.medium"
-		image = "Rescue Ubuntu 16.04 sys11"
-		use_floating_ip = false
+		image = "Rescue Ubuntu 18.04 sys11"
+		use_floating_ip = true
 	}
 }
 `, project, dc, tenant, username, password)
@@ -127,7 +127,7 @@ func TestAccMetakubeCluster_CreateAndInPlaceUpdates(t *testing.T) {
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckClusterResourceCreated("metakube_cluster.bar"),
-					testAccCheckClustersNodeDeployment("metakube_cluster.bar", "my-nodedepl", "l1.small", 2),
+					testAccCheckClustersNodeDeployment("metakube_cluster.bar", "my-nodedepl", "l1.small", "Rescue Ubuntu 16.04 sys11", false, 2),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "name", "my-cluster"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "labels.version", "alpha"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "version", "1.17.3"),
@@ -139,6 +139,7 @@ func TestAccMetakubeCluster_CreateAndInPlaceUpdates(t *testing.T) {
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.name", "my-nodedepl"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.replicas", "2"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.flavor", "l1.small"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.image", "Rescue Ubuntu 16.04 sys11"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.use_floating_ip", "false"),
 				),
 			},
@@ -146,12 +147,14 @@ func TestAccMetakubeCluster_CreateAndInPlaceUpdates(t *testing.T) {
 				Config: configUpdated,
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckClusterResourceCreated("metakube_cluster.bar"),
-					testAccCheckClustersNodeDeployment("metakube_cluster.bar", "my-nodedepl", "m1c.medium", 1),
+					testAccCheckClustersNodeDeployment("metakube_cluster.bar", "my-nodedepl", "m1c.medium", "Rescue Ubuntu 18.04 sys11", true, 1),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "name", "my-cluster-edit"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "labels.version", "beta"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "audit_logging", "false"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.replicas", "1"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.flavor", "m1c.medium"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.image", "Rescue Ubuntu 18.04 sys11"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.use_floating_ip", "true"),
 				),
 			},
 		},
@@ -206,7 +209,7 @@ func testAccCheckClusterResourceCreated(r string) resource.TestCheckFunc {
 	}
 }
 
-func testAccCheckClustersNodeDeployment(r, name, flavor string, replicas uint) resource.TestCheckFunc {
+func testAccCheckClustersNodeDeployment(r, name, flavor, image string, floatingIP bool, replicas uint) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[r]
 		if !ok {
@@ -235,6 +238,12 @@ func testAccCheckClustersNodeDeployment(r, name, flavor string, replicas uint) r
 		}
 		if want, got := flavor, nodedepl.Spec.Template.Cloud.Openstack.Flavor; want != got {
 			return fmt.Errorf("want flavor: %v, got: %v", want, got)
+		}
+		if want, got := image, nodedepl.Spec.Template.Cloud.Openstack.Image; want != got {
+			return fmt.Errorf("want image: %v, got: %v", want, got)
+		}
+		if want, got := floatingIP, nodedepl.Spec.Template.Cloud.Openstack.UseFloatingIP; want != got {
+			return fmt.Errorf("want use_floating_ip: %v, got: %v", want, got)
 		}
 		return nil
 	}
