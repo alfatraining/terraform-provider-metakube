@@ -1,6 +1,6 @@
 # Resources
 
-* `metakube_project` consisting of `name` and `labels` both in-place updatable.
+* `metakube_project` metakube project
 * `matekube_cluster` represents k8s cluster on openstack provider.
 
 
@@ -54,11 +54,15 @@ terraform apply ./examples
 ```
 
 Check resources created
+list projects:
 ```bash
 curl 'https://metakube.syseleven.de/api/v1/projects' -H "authorization: Bearer ${METAKUBE_API_TOKEN}" -H 'accept: application/json'
+```
+list clusters in the project (substitute your project id):
+```bash
 curl 'https://metakube.syseleven.de/api/v1/projects/<id>/clusters' -H "authorization: Bearer ${METAKUBE_API_TOKEN}" -H 'accept: application/json'
 ```
-OR if you use your user account bearer token, you can inspect everything on UI.
+OR if you use your user account's bearer token, you can inspect everything on UI.
 
 Destroy
 ```bash

@@ -58,7 +58,7 @@ var (
 				Email:             "string",
 				ID:                "string",
 				Name:              "string",
-				Projects: []OwnerProject{
+				Projects: []OwnerProjects{
 					{
 						Group: "string",
 						ID:    "string",
