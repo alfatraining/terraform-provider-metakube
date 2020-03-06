@@ -1,15 +1,27 @@
-# Tests
+# Resources
 
-## Unit
+* `metakube_project` consisting of `name` and `labels` both in-place updatable.
+* `matekube_cluster` represents k8s cluster on openstack provider.
+
+# Running
+
+## Unit tests
+
+Run tests:
 ```bash
 go test -v ./...
 ```
 ## Acceptance tests 
+
 IMPORTANT: this tests provision real resources.
 
-Set environment token variable
-```bash
-export METAKUBE_API_TOKEN=<YOUR TOKEN>
+Set required environment variables:
+```
+export METAKUBE_API_TOKEN=<token>
+export ACC_PROVIDER_DC=<openstack datacenter name>
+export ACC_TENANT=<tenant>
+export ACC_PROVIDER_USERNAME=<username>
+export ACC_PROVIDER_PASSWORD=<password>
 ```
 
 Run
@@ -17,9 +29,9 @@ Run
 TF_ACC=1 go test -v ./...
 ```
 
-# Manually
+## Manually
 
-There is simple project resource example at `./examples` directory to be used for manual testing.
+There is simple configuration file to use as base located at `./examples` directory. It is sinle project consisting of single cluster with single node deployment.
 
 First, build provider.
 ```bash
@@ -31,6 +43,8 @@ Init terraform (so it knows about metakube provider)
 terraform init ./examples
 ```
 
+Make desired changes to base config file `./examples/main.tf`.
+
 Apply
 ```bash
 terraform apply ./examples
@@ -39,7 +53,9 @@ terraform apply ./examples
 Check resources created
 ```bash
 curl 'https://metakube.syseleven.de/api/v1/projects' -H "authorization: Bearer ${METAKUBE_API_TOKEN}" -H 'accept: application/json'
+curl 'https://metakube.syseleven.de/api/v1/projects/<id>/clusters' -H "authorization: Bearer ${METAKUBE_API_TOKEN}" -H 'accept: application/json'
 ```
+OR if you use your user account bearer token, you can inspect everything on UI.
 
 Destroy
 ```bash
