@@ -124,6 +124,8 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 		return err
 	} else if err := checkClusterNodedeplImage(client, dc, d); err != nil {
 		return err
+	} else if err := checkClusterTenantValid(client, dc, d); err != nil {
+		return err
 	} else {
 		nodedepl := d.Get("nodedepl").([]interface{})[0].(map[string]interface{})
 		create := &gometakube.CreateClusterRequest{
@@ -330,12 +332,35 @@ func checkClusterNodedeplImage(client *gometakube.Client, dc *gometakube.Datacen
 	}
 	availableImages := make([]string, 0)
 	for _, image := range images {
-		availableImages = append(availableImages, image.Name)
+		availableImages = append(availableImages, "* "+image.Name)
 	}
 	return fmt.Errorf("image `%s` is not avaialable in datacenter `%s`. Consider changing to one of:\n%s",
-		dc.Metadata.Name,
 		imageName,
+		dc.Metadata.Name,
 		strings.Join(availableImages, "\n"))
+}
+
+func checkClusterTenantValid(client *gometakube.Client, dc *gometakube.Datacenter, d *schema.ResourceData) error {
+	providerUsername := d.Get("provider_username").(string)
+	providerPassword := d.Get("provider_password").(string)
+	tenants, err := client.Openstack.Tenants(context.Background(), dc.Metadata.Name, "Default", providerUsername, providerPassword)
+	if err != nil {
+		return fmt.Errorf("could not get list of tenants: %v", err)
+	}
+	specified := d.Get("tenant").(string)
+	for _, t := range tenants {
+		if t.Name == specified {
+			return nil
+		}
+	}
+	available := make([]string, 0)
+	for _, t := range tenants {
+		available = append(available, "* "+t.Name)
+	}
+	return fmt.Errorf("tenant `%s` is not avaialable in datacenter `%s`. Consider changing to one of:\n%s",
+		specified,
+		dc.Metadata.Name,
+		strings.Join(available, "\n"))
 }
 
 func getClusterDatacenter(c *gometakube.Client, n string) (*gometakube.Datacenter, error) {
