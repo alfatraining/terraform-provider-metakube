@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"time"
 
 	"golang.org/x/oauth2"
 )
@@ -18,6 +19,10 @@ const (
 type Client struct {
 	client  *http.Client
 	BaseURL *url.URL
+
+	// retry patch request on conflict status node 409.
+	retriesOnConflict     uint
+	retryOnConflictPeriod time.Duration
 
 	// Services
 	Datacenters     *DatacentersService
@@ -63,7 +68,9 @@ func New() *Client {
 // NewClient returns new metakube api client.
 func NewClient(opt CreateOpt) *Client {
 	client := &Client{
-		client: opt(),
+		client:                opt(),
+		retriesOnConflict:     3,
+		retryOnConflictPeriod: 5 * time.Second,
 	}
 	baseURL, _ := url.Parse(defaultBaseURL)
 	client.BaseURL = baseURL
@@ -147,10 +154,19 @@ func (c *Client) resourcePatch(ctx context.Context, path string, patch, ret inte
 	if err != nil {
 		return err
 	}
-	if resp, err := c.Do(ctx, req, &ret); err != nil {
-		return err
-	} else if resp.StatusCode != http.StatusOK {
-		return unexpectedResponseError(resp)
+	tries := uint(0)
+	ticker := time.NewTicker(c.retryOnConflictPeriod)
+	defer ticker.Stop()
+	for range ticker.C {
+		if resp, err := c.Do(ctx, req, &ret); err != nil {
+			return err
+		} else if resp.StatusCode == http.StatusConflict && tries < c.retriesOnConflict {
+			tries++
+		} else if resp.StatusCode != http.StatusOK {
+			return unexpectedResponseError(resp)
+		} else {
+			return nil
+		}
 	}
 	return nil
 }

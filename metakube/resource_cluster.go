@@ -192,6 +192,7 @@ func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
 		return err
 	} else {
 		d.Set("name", obj.Name)
+		d.Set("labels", obj.Labels)
 		d.Set("version", obj.Spec.Version)
 		d.Set("dc", obj.Spec.Cloud.DataCenter)
 		d.Set("audit_logging", obj.Spec.AuditLogging.Enabled)
