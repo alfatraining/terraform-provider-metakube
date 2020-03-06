@@ -30,6 +30,10 @@ func resourceCluster() *schema.Resource {
 				Required:     true,
 				ValidateFunc: validation.NoZeroValues,
 			},
+			"labels": {
+				Type:     schema.TypeMap,
+				Optional: true,
+			},
 			"version": {
 				Type:         schema.TypeString,
 				Required:     true,
@@ -37,6 +41,12 @@ func resourceCluster() *schema.Resource {
 				ValidateFunc: validation.StringInSlice([]string{"1.17.3", "1.15.10", "1.16.7"}, false),
 			},
 			"dc": {
+				Type:         schema.TypeString,
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.NoZeroValues,
+			},
+			"tenant": {
 				Type:         schema.TypeString,
 				Required:     true,
 				ForceNew:     true,
@@ -54,7 +64,12 @@ func resourceCluster() *schema.Resource {
 				Sensitive:    true,
 				ValidateFunc: validation.NoZeroValues,
 			},
-			"nodepool": {
+			"audit_logging": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  false,
+			},
+			"nodedepl": {
 				Type:     schema.TypeList,
 				Required: true,
 				MinItems: 1,
@@ -62,15 +77,14 @@ func resourceCluster() *schema.Resource {
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"name": {
-							Type:         schema.TypeString,
-							Required:     true,
-							ForceNew:     true, // remove when in-place update implemented
-							ValidateFunc: validation.NoZeroValues,
+							Type:     schema.TypeString,
+							Computed: true,
+							Optional: true,
+							ForceNew: true,
 						},
 						"replicas": {
 							Type:         schema.TypeInt,
 							Required:     true,
-							ForceNew:     true, // remove when in-place update implemented
 							ValidateFunc: validation.IntAtLeast(1),
 						},
 						"flavor_type": {
@@ -108,18 +122,23 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*gometakube.Client)
 	if dc, err := getClusterDatacenter(client, d.Get("dc").(string)); err != nil {
 		return err
-	} else if err := checkClusterNodepoolImage(client, dc, d); err != nil {
+	} else if err := checkClusterNodedeplImage(client, dc, d); err != nil {
 		return err
 	} else {
-		pool := d.Get("nodepool").([]interface{})[0].(map[string]interface{})
+		nodedepl := d.Get("nodedepl").([]interface{})[0].(map[string]interface{})
 		create := &gometakube.CreateClusterRequest{
 			Cluster: gometakube.Cluster{
-				Name: d.Get("name").(string),
+				Name:   d.Get("name").(string),
+				Labels: clusterLabelsMap(d),
 				Spec: &gometakube.ClusterSpec{
 					Version: d.Get("version").(string),
+					AuditLogging: gometakube.ClusterSpecAuditLogging{
+						Enabled: d.Get("audit_logging").(bool),
+					},
 					Cloud: &gometakube.ClusterSpecCloud{
 						OpenStack: &gometakube.ClusterSpecCloudOpenstack{
 							Domain:         "Default",
+							Tenant:         d.Get("tenant").(string),
 							Username:       d.Get("provider_username").(string),
 							Password:       d.Get("provider_password").(string),
 							FloatingIPPool: "ext-net",
@@ -132,15 +151,15 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 				SSHKeys: []string{},
 			},
 			NodeDeployment: gometakube.NodeDeployment{
-				Name: pool["name"].(string),
+				Name: nodedepl["name"].(string),
 				Spec: gometakube.NodeDeploymentSpec{
 					Template: gometakube.NodeDeploymentSpecTemplate{
 						Cloud: gometakube.NodeDeploymentSpecTemplateCloud{
 							Openstack: gometakube.NodeDeploymentSpecTemplateCloudOpenstack{
-								FlavorType:    pool["flavor_type"].(string),
-								Flavor:        pool["flavor"].(string),
-								Image:         pool["image"].(string),
-								UseFloatingIP: pool["use_floating_ip"].(bool),
+								FlavorType:    nodedepl["flavor_type"].(string),
+								Flavor:        nodedepl["flavor"].(string),
+								Image:         nodedepl["image"].(string),
+								UseFloatingIP: nodedepl["use_floating_ip"].(bool),
 							},
 						},
 						OperatingSystem: gometakube.NodeDeploymentSpecTemplateOS{
@@ -149,17 +168,17 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 							},
 						},
 					},
-					Replicas: uint(pool["replicas"].(int)),
+					Replicas: uint(nodedepl["replicas"].(int)),
 				},
 			},
 		}
-		projectID := d.Get("project_id").(string)
-		cluster, err := client.Clusters.Create(context.Background(), projectID, dc.Spec.Seed, create)
+		prj := d.Get("project_id").(string)
+		obj, err := client.Clusters.Create(context.Background(), prj, dc.Spec.Seed, create)
 		if err != nil {
 			return fmt.Errorf("could not create cluster: %v", err)
 		}
-		d.SetId(cluster.ID)
-		return waitForClusterHealthy(client, projectID, dc.Spec.Seed, cluster.ID)
+		d.SetId(obj.ID)
+		return waitForClusterHealthyAndNodedeplIsUp(client, prj, dc.Spec.Seed, obj.ID, d.Get("nodedepl.0.name").(string))
 	}
 }
 
@@ -175,20 +194,25 @@ func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
 		// Cluster was deleted
 		d.SetId("")
 		return nil
+	} else if nodeDeployment, err := getClusterNodeDeployment(client, project, dc.Spec.Seed, id, d.Get("nodedepl.0.name").(string)); err != nil {
+		return err
 	} else {
 		d.Set("name", obj.Name)
 		d.Set("version", obj.Spec.Version)
 		d.Set("dc", obj.Spec.Cloud.DataCenter)
-		// TODO: update nodepool vals
+		d.Set("audit_logging", obj.Spec.AuditLogging.Enabled)
+
+		d.Set("nodedepl.0.replicas", nodeDeployment.Spec.Replicas)
 		return nil
 	}
 }
 
 func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 	d.Partial(true)
-	if d.HasChange("name") {
-		client := meta.(*gometakube.Client)
-		projectID := d.Get("project_id").(string)
+	client := meta.(*gometakube.Client)
+	projectID := d.Get("project_id").(string)
+
+	if d.HasChanges("name", "labels", "audit_logging") {
 		if dc, err := getClusterDatacenter(client, d.Get("dc").(string)); err != nil {
 			return err
 		} else if cluster, err := getCluster(client, projectID, dc.Spec.Seed, d.Id()); err != nil {
@@ -198,18 +222,41 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 			return nil
 		} else {
 			patch := &gometakube.PatchClusterRequest{
-				Name: d.Get("name").(string),
+				Name:   d.Get("name").(string),
+				Labels: clusterLabelsMap(d),
+				Spec: &gometakube.PatchClusterRequestSpec{
+					AuditLogging: &gometakube.ClusterSpecAuditLogging{
+						Enabled: d.Get("audit_logging").(bool),
+					},
+				},
 			}
 			_, err = client.Clusters.Patch(context.Background(), projectID, dc.Spec.Seed, d.Id(), patch)
 			if err != nil {
 				return fmt.Errorf("could not patch cluster (is cluster provisioning compete?). error: %v", err)
 			}
 			d.SetPartial("name")
+			d.SetPartial("labels")
+			d.SetPartial("audit_logging")
 		}
 	}
+	if d.HasChange("nodedepl.0.replicas") {
+		if dc, err := getClusterDatacenter(client, d.Get("dc").(string)); err != nil {
+			return err
+		} else if nodedepl, err := getClusterNodeDeployment(client, projectID, dc.Spec.Seed, d.Id(), d.Get("nodedepl.0.name").(string)); err != nil {
+			return err
+		} else {
+			patch := &gometakube.NodeDeploymentsPatchRequest{Spec: nodedepl.Spec}
+			patch.Spec.Replicas = uint(d.Get("nodedepl.0.replicas").(int))
+			_, err = client.NodeDeployments.Patch(context.Background(), projectID, dc.Spec.Seed, d.Id(), nodedepl.ID, patch)
+			if err != nil {
+				return fmt.Errorf("could not patch node deployment: %v", err)
+			}
+			d.SetPartial("nodedepl.0.replicas")
+		}
+	}
+
 	d.Partial(false)
 	return nil
-	// TODO: patch nodepool if nodepool's name changes
 }
 
 func resourceClusterDelete(d *schema.ResourceData, meta interface{}) error {
@@ -223,6 +270,13 @@ func resourceClusterDelete(d *schema.ResourceData, meta interface{}) error {
 	} else {
 		return nil
 	}
+}
+
+func waitForClusterHealthyAndNodedeplIsUp(client *gometakube.Client, prj, dc, cls, nodedepl string) error {
+	if err := waitForClusterHealthy(client, prj, dc, cls); err != nil {
+		return err
+	}
+	return waitNodedeplCreated(client, prj, dc, cls, nodedepl)
 }
 
 func waitForClusterHealthy(client *gometakube.Client, prj, dc, id string) error {
@@ -243,15 +297,32 @@ func waitForClusterHealthy(client *gometakube.Client, prj, dc, id string) error 
 	return nil
 }
 
-func checkClusterNodepoolImage(client *gometakube.Client, dc *gometakube.Datacenter, d *schema.ResourceData) error {
+func waitNodedeplCreated(client *gometakube.Client, prj, dc, cls, name string) (err error) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	timeout := 5 * 60
+	n := 0
+	for range ticker.C {
+		if _, err = getClusterNodeDeployment(client, prj, dc, cls, name); err == nil {
+			return nil
+		}
+		if n > timeout {
+			return fmt.Errorf("Timeout waiting to create cluster node deployment: %v", err)
+		}
+		n++
+	}
+	return err
+}
+
+func checkClusterNodedeplImage(client *gometakube.Client, dc *gometakube.Datacenter, d *schema.ResourceData) error {
 	providerUsername := d.Get("provider_username").(string)
 	providerPassword := d.Get("provider_password").(string)
-	images, err := client.Images.List(context.Background(), dc.Metadata.Name, "Default", providerUsername, providerPassword)
+	images, err := client.Openstack.Images(context.Background(), dc.Metadata.Name, "Default", providerUsername, providerPassword)
 	if err != nil {
 		return fmt.Errorf("could not get list of images: %v", err)
 	}
-	pool := d.Get("nodepool").([]interface{})[0].(map[string]interface{})
-	imageName := pool["image"].(string)
+	nodedepl := d.Get("nodedepl").([]interface{})[0].(map[string]interface{})
+	imageName := nodedepl["image"].(string)
 	for _, image := range images {
 		if image.Name == imageName {
 			return nil
@@ -281,4 +352,21 @@ func getCluster(c *gometakube.Client, prj, dc, id string) (*gometakube.Cluster, 
 		return nil, fmt.Errorf("could not get cluster details: %v", err)
 	}
 	return obj, nil
+}
+
+func clusterLabelsMap(d *schema.ResourceData) (ret map[string]string) {
+	return labelsMap(d)
+}
+
+func getClusterNodeDeployment(c *gometakube.Client, prj, dc, cls, name string) (*gometakube.NodeDeployment, error) {
+	items, err := c.NodeDeployments.List(context.Background(), prj, dc, cls)
+	if err != nil {
+		return nil, fmt.Errorf("could not get cluster node deployments: %v", err)
+	}
+	for _, item := range items {
+		if item.Name == name {
+			return &item, nil
+		}
+	}
+	return nil, fmt.Errorf("could not find node deployment with given name: %s", name)
 }

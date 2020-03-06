@@ -14,11 +14,12 @@ import (
 
 const (
 	accProviderDCEnvname       = "ACC_PROVIDER_DC"
+	accTenantEnvname           = "ACC_TENANT"
 	accProviderUsernameEnvname = "ACC_PROVIDER_USERNAME"
 	accProviderPasswordEnvname = "ACC_PROVIDER_PASSWORD"
 )
 
-func testAccCheckMetakubeClusterConfig(project, dc, username, password string) string {
+func testAccMetakubeClusterConfig(project, dc, tenant, username, password string) string {
 	return fmt.Sprintf(`
 provider "metakube" {
 
@@ -32,14 +33,19 @@ resource "metakube_project" "cluster-project" {
 
 resource "metakube_cluster" "bar" {
 	project_id = metakube_project.cluster-project.id
-	name = "bar"
+	name = "my-cluster"
+	labels = {
+		"version" = "alpha"
+	}
 	version = "1.17.3"
 	dc = "%s"
+	tenant = "%s"
 	provider_username = "%s"
 	provider_password = "%s"
+	audit_logging = true
 
-	nodepool {
-		name = "my-nodepool"
+	nodedepl {
+		name = "my-nodedepl"
 		replicas = 2
 
 		flavor_type = "Local Storage"
@@ -47,24 +53,72 @@ resource "metakube_cluster" "bar" {
 		image = "Rescue Ubuntu 16.04 sys11"
 		use_floating_ip = false
 	}
+}
+`, project, dc, tenant, username, password)
+}
+
+func testAccMetakubeClusterConfigUpdate(project, dc, tenant, username, password string) string {
+	return fmt.Sprintf(`
+provider "metakube" {
 
 }
-`, project, dc, username, password)
+
+resource "metakube_project" "cluster-project" {
+	name = "%s"
+
+	labels = {}
 }
 
-func TestAccMetakubeCluster_Basic(t *testing.T) {
+resource "metakube_cluster" "bar" {
+	project_id = metakube_project.cluster-project.id
+	name = "my-cluster-edit"
+	labels = {
+		"version" = "beta"
+	}
+	version = "1.17.3"
+	dc = "%s"
+	tenant = "%s"
+	provider_username = "%s"
+	provider_password = "%s"
+	audit_logging = false
+
+	nodedepl {
+		name = "my-nodedepl"
+		replicas = 1
+
+		flavor_type = "Local Storage"
+		flavor = "l1.small"
+		image = "Rescue Ubuntu 16.04 sys11"
+		use_floating_ip = false
+	}
+}
+`, project, dc, tenant, username, password)
+}
+
+func TestAccMetakubeCluster_CreateAndInPlaceUpdates(t *testing.T) {
 	testDC := os.Getenv(accProviderDCEnvname)
+	testTenant := os.Getenv(accTenantEnvname)
 	testProviderUsername := os.Getenv(accProviderUsernameEnvname)
 	testProviderPassword := os.Getenv(accProviderPasswordEnvname)
-	config := testAccCheckMetakubeClusterConfig(
-		acctest.RandString(8),
+	projectName := acctest.RandString(8)
+	config := testAccMetakubeClusterConfig(
+		projectName,
 		testDC,
+		testTenant,
 		testProviderUsername,
 		testProviderPassword)
+	configUpdated := testAccMetakubeClusterConfigUpdate(
+		projectName,
+		testDC,
+		testTenant,
+		testProviderUsername,
+		testProviderPassword,
+	)
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
 			testEnvSet(t, "METAKUBE_API_TOKEN")
 			testEnvSet(t, accProviderDCEnvname)
+			testEnvSet(t, accTenantEnvname)
 			testEnvSet(t, accProviderUsernameEnvname)
 			testEnvSet(t, accProviderPasswordEnvname)
 		},
@@ -75,17 +129,31 @@ func TestAccMetakubeCluster_Basic(t *testing.T) {
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckClusterResourceCreated("metakube_cluster.bar"),
-					resource.TestCheckResourceAttr("metakube_cluster.bar", "name", "bar"),
+					testAccCheckClustersNodeDeploymentReplicas("metakube_cluster.bar", "my-nodedepl", 2),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "name", "my-cluster"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "labels.version", "alpha"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "version", "1.17.3"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "dc", testDC),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "audit_logging", "true"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "provider_username", testProviderUsername),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "provider_password", testProviderPassword),
-					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodepool.#", "1"),
-					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodepool.0.name", "my-nodepool"),
-					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodepool.0.replicas", "2"),
-					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodepool.0.flavor_type", "Local Storage"),
-					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodepool.0.flavor", "l1.small"),
-					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodepool.0.use_floating_ip", "false"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.#", "1"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.name", "my-nodedepl"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.replicas", "2"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.flavor_type", "Local Storage"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.flavor", "l1.small"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.use_floating_ip", "false"),
+				),
+			},
+			{
+				Config: configUpdated,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckClusterResourceCreated("metakube_cluster.bar"),
+					testAccCheckClustersNodeDeploymentReplicas("metakube_cluster.bar", "my-nodedepl", 1),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "name", "my-cluster-edit"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "labels.version", "beta"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "audit_logging", "false"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.replicas", "1"),
 				),
 			},
 		},
@@ -136,6 +204,37 @@ func testAccCheckClusterResourceCreated(r string) resource.TestCheckFunc {
 			return fmt.Errorf("cluster not created")
 		}
 
+		return nil
+	}
+}
+
+func testAccCheckClustersNodeDeploymentReplicas(r, name string, replicas uint) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[r]
+		if !ok {
+			return fmt.Errorf("Not found: %s", r)
+		}
+		client := testAccProvider.Meta().(*gometakube.Client)
+		projectID := rs.Primary.Attributes["project_id"]
+		dcName := rs.Primary.Attributes["dc"]
+		dc, err := client.Datacenters.Get(context.Background(), dcName)
+		if err != nil {
+			return fmt.Errorf("failed to get datacenter details: %v", err)
+		}
+		var nodedepl *gometakube.NodeDeployment
+		items, err := client.NodeDeployments.List(context.Background(), projectID, dc.Spec.Seed, rs.Primary.ID)
+		for _, item := range items {
+			if item.Name == name {
+				nodedepl = &item
+				break
+			}
+		}
+		if nodedepl == nil {
+			return fmt.Errorf("Not found node deployment with name: %s", name)
+		}
+		if nodedepl.Spec.Replicas != replicas {
+			return fmt.Errorf("want replicas: %v, got: %v", replicas, nodedepl.Spec.Replicas)
+		}
 		return nil
 	}
 }

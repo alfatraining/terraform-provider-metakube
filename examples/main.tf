@@ -13,16 +13,22 @@ resource "metakube_project" "my-project" {
 resource "metakube_cluster" "my-cluster" {
   project_id = metakube_project.my-project.id
 
-  name    = "my-cluster"
-  version = "1.17.3"         // k8s version
-  dc      = "syseleven-dbl1" // openstack datacenter
+  labels = {
+    "environment" = "staging"
+  }
+
+  name          = "my-cluster"
+  version       = "1.17.3"         // k8s version
+  dc            = "syseleven-dbl1" // openstack datacenter
+  audit_logging = true
 
   // openstack 
+  tenant            = ""
   provider_username = "" // sensitive
   provider_password = "" // sensitive
 
-  nodepool {
-    name     = "my-cluster-nodepool-one"
+  nodedepl {
+    name     = "my-cluster-nodedepl-one"
     replicas = 2
 
     flavor_type     = "Local Storage"

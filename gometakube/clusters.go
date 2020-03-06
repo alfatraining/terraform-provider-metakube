@@ -228,9 +228,9 @@ type ClustersService struct {
 
 // List returns list of clusters in project.
 func (svc *ClustersService) List(ctx context.Context, project string) ([]Cluster, error) {
-	url := fmt.Sprintf(clusterListURLTpl, project)
+	path := fmt.Sprintf(clusterListURLTpl, project)
 	ret := make([]Cluster, 0)
-	if resp, err := svc.client.resourceList(ctx, url, &ret); err != nil {
+	if resp, err := svc.client.resourceList(ctx, path, &ret); err != nil {
 		return nil, err
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, unexpectedResponseError(resp)
@@ -257,8 +257,8 @@ func (svc *ClustersService) Create(ctx context.Context, prj, dc string, create *
 
 // Delete deletes cluster.
 func (svc *ClustersService) Delete(ctx context.Context, prj, dc, clusterID string) error {
-	url := clusterResourcePath(prj, dc, clusterID)
-	if resp, err := svc.client.resourceDelete(ctx, url); err != nil {
+	path := clusterResourcePath(prj, dc, clusterID)
+	if resp, err := svc.client.resourceDelete(ctx, path); err != nil {
 		return fmt.Errorf("could not delete cluster: %v", err)
 	} else if resp.StatusCode != http.StatusOK {
 		return unexpectedResponseError(resp)
@@ -268,9 +268,9 @@ func (svc *ClustersService) Delete(ctx context.Context, prj, dc, clusterID strin
 
 // Get returns cluster details.
 func (svc *ClustersService) Get(ctx context.Context, prj, dc, clusterID string) (*Cluster, error) {
-	url := clusterResourcePath(prj, dc, clusterID)
+	path := clusterResourcePath(prj, dc, clusterID)
 	ret := new(Cluster)
-	if resp, err := svc.client.resourceGet(ctx, url, ret); err != nil {
+	if resp, err := svc.client.resourceGet(ctx, path, ret); err != nil {
 		return nil, err
 	} else if resp.StatusCode == http.StatusNotFound {
 		return nil, nil
@@ -295,16 +295,10 @@ type PatchClusterRequestSpec struct {
 
 // Patch updates cluster.
 func (svc *ClustersService) Patch(ctx context.Context, prj, dc, clusterID string, patch *PatchClusterRequest) (*Cluster, error) {
-	url := clusterResourcePath(prj, dc, clusterID)
+	path := clusterResourcePath(prj, dc, clusterID)
 	ret := new(Cluster)
-	req, err := svc.client.NewRequest(http.MethodPatch, url, patch)
-	if err != nil {
+	if err := svc.client.resourcePatch(ctx, path, patch, ret); err != nil {
 		return nil, err
-	}
-	if resp, err := svc.client.Do(ctx, req, ret); err != nil {
-		return nil, err
-	} else if resp.StatusCode != http.StatusOK {
-		return nil, unexpectedResponseError(resp)
 	}
 	return ret, nil
 }

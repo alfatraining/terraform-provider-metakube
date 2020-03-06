@@ -7,41 +7,43 @@ import (
 	"testing"
 )
 
-const nodeDeploymentJSON = `
+const (
+	nodeDeploymentSpecJSON = `{
+	"replicas": 3,
+	"template": {
+	  "cloud": {
+		"openstack": {
+		  "flavor": "m1.small",
+		  "image": "Ubuntu Bionic 18.04 (2020-02-19)",
+		  "tags": {
+			"metakube-cluster": "j7f2svjll8",
+			"system-cluster": "j7f2svjll8",
+			"system-project": "5hrnkmpmp4"
+		  },
+		  "useFloatingIP": true
+		}
+	  },
+	  "operatingSystem": {
+		"ubuntu": {
+		  "distUpgradeOnBoot": false
+		}
+	  },
+	  "versions": {
+		"kubelet": "1.17.2"
+	  },
+	  "labels": {
+		"system/cluster": "j7f2svjll8",
+		"system/project": "5hrnkmpmp4"
+	  }
+	},
+	"paused": false
+  }`
+	nodeDeploymentJSON = `
   {
     "id": "metakube-worker-2xkvd",
     "name": "metakube-worker-2xkvd",
     "creationTimestamp": "2020-02-20T08:17:22Z",
-    "spec": {
-      "replicas": 3,
-      "template": {
-        "cloud": {
-          "openstack": {
-            "flavor": "m1.small",
-            "image": "Ubuntu Bionic 18.04 (2020-02-19)",
-            "tags": {
-              "metakube-cluster": "j7f2svjll8",
-              "system-cluster": "j7f2svjll8",
-              "system-project": "5hrnkmpmp4"
-            },
-            "useFloatingIP": true
-          }
-        },
-        "operatingSystem": {
-          "ubuntu": {
-            "distUpgradeOnBoot": false
-          }
-        },
-        "versions": {
-          "kubelet": "1.17.2"
-        },
-        "labels": {
-          "system/cluster": "j7f2svjll8",
-          "system/project": "5hrnkmpmp4"
-        }
-      },
-      "paused": false
-    },
+    "spec": ` + nodeDeploymentSpecJSON + `,
     "status": {
       "observedGeneration": 1,
       "replicas": 3,
@@ -50,6 +52,10 @@ const nodeDeploymentJSON = `
       "availableReplicas": 3
     }
   }`
+	prj = "theproj"
+	dc  = "thedc"
+	cls = "theclust"
+)
 
 var nodeDeployment = NodeDeployment{
 	ID:                "metakube-worker-2xkvd",
@@ -99,9 +105,6 @@ func TestNodeDeployments_List(t *testing.T) {
 	defer teardown()
 
 	nodeDeploymentsJSON := fmt.Sprintf("[%s]", nodeDeploymentJSON)
-	prj := "5hrnkmpmp4"
-	dc := "bki1"
-	cls := "j7f2svjll8"
 	url := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/nodedeployments", prj, dc, cls)
 	mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodGet)
@@ -112,6 +115,23 @@ func TestNodeDeployments_List(t *testing.T) {
 	testErrNil(t, err)
 
 	if want := []NodeDeployment{nodeDeployment}; !reflect.DeepEqual(want, got) {
+		t.Fatalf("want: %+v, got: %+v", want, got)
+	}
+}
+
+func TestNodeDeployments_Patch(t *testing.T) {
+	setup()
+	defer teardown()
+
+	url := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/nodedeployments/%s", prj, dc, cls, nodeDeployment.ID)
+	mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPatch)
+		fmt.Fprint(w, nodeDeploymentJSON)
+	})
+
+	got, err := client.NodeDeployments.Patch(ctx, prj, dc, cls, nodeDeployment.ID, &NodeDeploymentsPatchRequest{nodeDeployment.Spec})
+	testErrNil(t, err)
+	if want := &nodeDeployment; !reflect.DeepEqual(want, got) {
 		t.Fatalf("want: %+v, got: %+v", want, got)
 	}
 }

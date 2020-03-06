@@ -141,3 +141,16 @@ func (c *Client) resourceGet(ctx context.Context, path string, ret interface{}) 
 	}
 	return c.Do(ctx, req, &ret)
 }
+
+func (c *Client) resourcePatch(ctx context.Context, path string, patch, ret interface{}) error {
+	req, err := c.NewRequest(http.MethodPatch, path, patch)
+	if err != nil {
+		return err
+	}
+	if resp, err := c.Do(ctx, req, &ret); err != nil {
+		return err
+	} else if resp.StatusCode != http.StatusOK {
+		return unexpectedResponseError(resp)
+	}
+	return nil
+}
