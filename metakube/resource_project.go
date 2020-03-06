@@ -62,6 +62,7 @@ func resourceProjectRead(d *schema.ResourceData, meta interface{}) error {
 
 func resourceProjectUpdate(d *schema.ResourceData, meta interface{}) error {
 	d.Partial(true)
+	defer d.Partial(false)
 
 	update := &gometakube.ProjectCreateAndUpdateRequest{
 		Name:   d.Get("name").(string),
@@ -80,7 +81,6 @@ func resourceProjectUpdate(d *schema.ResourceData, meta interface{}) error {
 	d.SetPartial("name")
 	d.SetPartial("labels")
 
-	d.Partial(false)
 	return nil
 }
 

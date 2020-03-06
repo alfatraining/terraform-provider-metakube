@@ -5,6 +5,11 @@ import (
 	"gitlab.com/furkhat/terraform-provider-metakube/gometakube"
 )
 
+// provider env.
+const (
+	APITokenEnvName = "METAKUBE_API_TOKEN"
+)
+
 // Provider returns MetaKube Provider.
 func Provider() *schema.Provider {
 	return &schema.Provider{
@@ -12,7 +17,7 @@ func Provider() *schema.Provider {
 			"token": &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
-				DefaultFunc: schema.EnvDefaultFunc("METAKUBE_API_TOKEN", nil),
+				DefaultFunc: schema.EnvDefaultFunc(APITokenEnvName, nil),
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{

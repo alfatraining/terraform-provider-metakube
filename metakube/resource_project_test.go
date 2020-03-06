@@ -31,7 +31,7 @@ resource "metakube_project" "foo" {
 
 func TestAccMetakubeProject_Basic(t *testing.T) {
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testEnvSet(t, "METAKUBE_API_TOKEN") },
+		PreCheck:     func() { testEnvSet(t, APITokenEnvName) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckMetakubeProjectDestroy,
 		Steps: []resource.TestStep{

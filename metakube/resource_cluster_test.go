@@ -114,7 +114,7 @@ func TestAccMetakubeCluster_CreateAndInPlaceUpdates(t *testing.T) {
 	)
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
-			testEnvSet(t, "METAKUBE_API_TOKEN")
+			testEnvSet(t, APITokenEnvName)
 			testEnvSet(t, accProviderDCEnvname)
 			testEnvSet(t, accTenantEnvname)
 			testEnvSet(t, accProviderUsernameEnvname)

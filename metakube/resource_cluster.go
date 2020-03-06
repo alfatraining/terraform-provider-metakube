@@ -172,7 +172,7 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 			return fmt.Errorf("could not create cluster: %v", err)
 		}
 		d.SetId(obj.ID)
-		return waitForClusterHealthyAndNodedeplIsUp(client, prj, dc.Spec.Seed, obj.ID, d.Get("nodedepl.0.name").(string))
+		return waitForClusterRunningAndNodeDeploymentCreate(client, prj, dc.Spec.Seed, obj.ID, d.Get("nodedepl.0.name").(string))
 	}
 }
 
@@ -203,6 +203,7 @@ func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
 
 func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 	d.Partial(true)
+	defer d.Partial(false)
 	client := meta.(*gometakube.Client)
 	projectID := d.Get("project_id").(string)
 
@@ -213,6 +214,7 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 			return err
 		} else if cluster == nil {
 			// Cluster was deleted
+			d.SetId("")
 			return nil
 		} else {
 			patch := &gometakube.PatchClusterRequest{
@@ -257,7 +259,6 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	d.Partial(false)
 	return nil
 }
 
@@ -274,11 +275,11 @@ func resourceClusterDelete(d *schema.ResourceData, meta interface{}) error {
 	}
 }
 
-func waitForClusterHealthyAndNodedeplIsUp(client *gometakube.Client, prj, dc, cls, nodedepl string) error {
+func waitForClusterRunningAndNodeDeploymentCreate(client *gometakube.Client, prj, dc, cls, nodedepl string) error {
 	if err := waitForClusterHealthy(client, prj, dc, cls); err != nil {
 		return err
 	}
-	return waitNodedeplCreated(client, prj, dc, cls, nodedepl)
+	return waitNodeDeploymentCreate(client, prj, dc, cls, nodedepl)
 }
 
 func waitForClusterHealthy(client *gometakube.Client, prj, dc, id string) error {
@@ -299,7 +300,7 @@ func waitForClusterHealthy(client *gometakube.Client, prj, dc, id string) error 
 	return nil
 }
 
-func waitNodedeplCreated(client *gometakube.Client, prj, dc, cls, name string) (err error) {
+func waitNodeDeploymentCreate(client *gometakube.Client, prj, dc, cls, name string) (err error) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	timeout := 5 * 60
