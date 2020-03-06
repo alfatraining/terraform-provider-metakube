@@ -87,16 +87,9 @@ func resourceCluster() *schema.Resource {
 							Required:     true,
 							ValidateFunc: validation.IntAtLeast(1),
 						},
-						"flavor_type": {
-							Type:         schema.TypeString,
-							Required:     true,
-							ForceNew:     true,
-							ValidateFunc: validation.StringInSlice([]string{"Local Storage", "Network Storage"}, false),
-						},
 						"flavor": {
 							Type:         schema.TypeString,
 							Required:     true,
-							ForceNew:     true,
 							ValidateFunc: validation.NoZeroValues,
 						},
 						"image": {
@@ -158,7 +151,6 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 					Template: gometakube.NodeDeploymentSpecTemplate{
 						Cloud: gometakube.NodeDeploymentSpecTemplateCloud{
 							Openstack: gometakube.NodeDeploymentSpecTemplateCloudOpenstack{
-								FlavorType:    nodedepl["flavor_type"].(string),
 								Flavor:        nodedepl["flavor"].(string),
 								Image:         nodedepl["image"].(string),
 								UseFloatingIP: nodedepl["use_floating_ip"].(bool),
@@ -241,7 +233,7 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 			d.SetPartial("audit_logging")
 		}
 	}
-	if d.HasChange("nodedepl.0.replicas") {
+	if d.HasChanges("nodedepl.0.replicas", "nodedepl.0.flavor") {
 		if dc, err := getClusterDatacenter(client, d.Get("dc").(string)); err != nil {
 			return err
 		} else if nodedepl, err := getClusterNodeDeployment(client, projectID, dc.Spec.Seed, d.Id(), d.Get("nodedepl.0.name").(string)); err != nil {
@@ -249,11 +241,13 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 		} else {
 			patch := &gometakube.NodeDeploymentsPatchRequest{Spec: nodedepl.Spec}
 			patch.Spec.Replicas = uint(d.Get("nodedepl.0.replicas").(int))
+			patch.Spec.Template.Cloud.Openstack.Flavor = d.Get("nodedepl.0.flavor").(string)
 			_, err = client.NodeDeployments.Patch(context.Background(), projectID, dc.Spec.Seed, d.Id(), nodedepl.ID, patch)
 			if err != nil {
 				return fmt.Errorf("could not patch node deployment: %v", err)
 			}
 			d.SetPartial("nodedepl.0.replicas")
+			d.SetPartial("nodedepl.0.flavor")
 		}
 	}
 

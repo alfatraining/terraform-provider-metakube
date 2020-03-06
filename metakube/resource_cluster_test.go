@@ -48,7 +48,6 @@ resource "metakube_cluster" "bar" {
 		name = "my-nodedepl"
 		replicas = 2
 
-		flavor_type = "Local Storage"
 		flavor = "l1.small"
 		image = "Rescue Ubuntu 16.04 sys11"
 		use_floating_ip = false
@@ -86,8 +85,7 @@ resource "metakube_cluster" "bar" {
 		name = "my-nodedepl"
 		replicas = 1
 
-		flavor_type = "Local Storage"
-		flavor = "l1.small"
+		flavor = "m1c.medium"
 		image = "Rescue Ubuntu 16.04 sys11"
 		use_floating_ip = false
 	}
@@ -129,7 +127,7 @@ func TestAccMetakubeCluster_CreateAndInPlaceUpdates(t *testing.T) {
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckClusterResourceCreated("metakube_cluster.bar"),
-					testAccCheckClustersNodeDeploymentReplicas("metakube_cluster.bar", "my-nodedepl", 2),
+					testAccCheckClustersNodeDeployment("metakube_cluster.bar", "my-nodedepl", "l1.small", 2),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "name", "my-cluster"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "labels.version", "alpha"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "version", "1.17.3"),
@@ -140,7 +138,6 @@ func TestAccMetakubeCluster_CreateAndInPlaceUpdates(t *testing.T) {
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.#", "1"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.name", "my-nodedepl"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.replicas", "2"),
-					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.flavor_type", "Local Storage"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.flavor", "l1.small"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.use_floating_ip", "false"),
 				),
@@ -149,11 +146,12 @@ func TestAccMetakubeCluster_CreateAndInPlaceUpdates(t *testing.T) {
 				Config: configUpdated,
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckClusterResourceCreated("metakube_cluster.bar"),
-					testAccCheckClustersNodeDeploymentReplicas("metakube_cluster.bar", "my-nodedepl", 1),
+					testAccCheckClustersNodeDeployment("metakube_cluster.bar", "my-nodedepl", "m1c.medium", 1),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "name", "my-cluster-edit"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "labels.version", "beta"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "audit_logging", "false"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.replicas", "1"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.flavor", "m1c.medium"),
 				),
 			},
 		},
@@ -208,7 +206,7 @@ func testAccCheckClusterResourceCreated(r string) resource.TestCheckFunc {
 	}
 }
 
-func testAccCheckClustersNodeDeploymentReplicas(r, name string, replicas uint) resource.TestCheckFunc {
+func testAccCheckClustersNodeDeployment(r, name, flavor string, replicas uint) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[r]
 		if !ok {
@@ -234,6 +232,9 @@ func testAccCheckClustersNodeDeploymentReplicas(r, name string, replicas uint) r
 		}
 		if nodedepl.Spec.Replicas != replicas {
 			return fmt.Errorf("want replicas: %v, got: %v", replicas, nodedepl.Spec.Replicas)
+		}
+		if want, got := flavor, nodedepl.Spec.Template.Cloud.Openstack.Flavor; want != got {
+			return fmt.Errorf("want flavor: %v, got: %v", want, got)
 		}
 		return nil
 	}

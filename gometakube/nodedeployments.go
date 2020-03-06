@@ -35,7 +35,6 @@ type NodeDeploymentSpecTemplateCloud struct {
 }
 
 type NodeDeploymentSpecTemplateCloudOpenstack struct {
-	FlavorType    string            `json:"flavorType"`
 	Flavor        string            `json:"flavor"`
 	Image         string            `json:"image"`
 	Tags          map[string]string `json:"tags"`

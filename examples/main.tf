@@ -31,9 +31,8 @@ resource "metakube_cluster" "my-cluster" {
     name     = "my-cluster-nodedepl-one"
     replicas = 2
 
-    flavor_type     = "Local Storage"
     flavor          = "l1.small"
-    image           = "Ubuntu Bionic 18.04 (2020-03-03)"
+    image           = "Rescue Ubuntu 18.04 sys11"
     use_floating_ip = false
   }
 }
