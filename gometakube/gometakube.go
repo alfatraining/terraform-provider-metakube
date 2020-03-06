@@ -157,16 +157,20 @@ func (c *Client) resourcePatch(ctx context.Context, path string, patch, ret inte
 	tries := uint(0)
 	ticker := time.NewTicker(c.retryOnConflictPeriod)
 	defer ticker.Stop()
-	for range ticker.C {
-		if resp, err := c.Do(ctx, req, &ret); err != nil {
-			return err
-		} else if resp.StatusCode == http.StatusConflict && tries < c.retriesOnConflict {
-			tries++
-		} else if resp.StatusCode != http.StatusOK {
-			return unexpectedResponseError(resp)
-		} else {
-			return nil
+	for {
+		select {
+		case <-ticker.C:
+			if resp, err := c.Do(ctx, req, &ret); err != nil {
+				return err
+			} else if resp.StatusCode == http.StatusConflict && tries < c.retriesOnConflict {
+				tries++
+			} else if resp.StatusCode != http.StatusOK {
+				return unexpectedResponseError(resp)
+			} else {
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 	}
-	return nil
 }
