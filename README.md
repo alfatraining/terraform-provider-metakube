@@ -34,7 +34,7 @@ TF_ACC=1 go test -v ./...
 
 ## Manually
 
-There is simple configuration file to use as base located at `./examples` directory. It is sinle project consisting of single cluster with single node deployment.
+You can find example configuration file to use as base at [./examples/main.tf](/examples/main.tf). It is single project consisting of single cluster with single node deployment.
 
 First, build provider.
 ```bash
@@ -46,25 +46,26 @@ Init terraform (so it knows about metakube provider)
 terraform init ./examples
 ```
 
-Make desired changes to base config file [./examples/main.tf](/examples/main.tf).
+Make changes to base config file [./examples/main.tf](/examples/main.tf). Minimal changes would be setting values for `tenant`, `provider_username` and `provider_password` fields of a `matkube_cluster` resource which are left empty in the example file.
 
 Apply
 ```bash
 terraform apply ./examples
 ```
 
-Check resources created
-list projects:
+List created projects:
 ```bash
 curl 'https://metakube.syseleven.de/api/v1/projects' -H "authorization: Bearer ${METAKUBE_API_TOKEN}" -H 'accept: application/json'
 ```
 list clusters in the project (substitute your project id):
 ```bash
-curl 'https://metakube.syseleven.de/api/v1/projects/<id>/clusters' -H "authorization: Bearer ${METAKUBE_API_TOKEN}" -H 'accept: application/json'
+curl 'https://metakube.syseleven.de/api/v1/projects/<YOUR PROJECT ID>/clusters' -H "authorization: Bearer ${METAKUBE_API_TOKEN}" -H 'accept: application/json'
 ```
 OR if you use your user account's bearer token, you can inspect everything on UI.
 
-Destroy
+Now you can keep changing and keep applying.
+
+To cleanup, run Destroy
 ```bash
 terraform destroy ./examples
 ```
