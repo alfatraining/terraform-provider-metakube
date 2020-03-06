@@ -3,6 +3,9 @@
 * `metakube_project` consisting of `name` and `labels` both in-place updatable.
 * `matekube_cluster` represents k8s cluster on openstack provider.
 
+
+Example terraform file [./examples/main.tf](/examples/main.tf)
+
 # Running
 
 ## Unit tests
@@ -43,7 +46,7 @@ Init terraform (so it knows about metakube provider)
 terraform init ./examples
 ```
 
-Make desired changes to base config file `./examples/main.tf`.
+Make desired changes to base config file [./examples/main.tf](/examples/main.tf).
 
 Apply
 ```bash
