@@ -32,7 +32,12 @@ resource "metakube_cluster" "my-cluster" {
   // clusters node deployment
   nodedepl {
     name     = "my-cluster-nodedepl-one" // change forces new
-    replicas = 2                         // has in-place update
+    replicas = 1                         // has in-place update
+
+    autoscale {
+      min_replicas = 1 // optional, not setting and setting to zero have the same effect.
+      max_replicas = 2 // optional, not setting and setting to zero have the same effect.
+    }
 
     flavor          = "l1.small"                  // has in-place update
     image           = "Rescue Ubuntu 18.04 sys11" // has in-place update

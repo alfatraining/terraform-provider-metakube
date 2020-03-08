@@ -89,6 +89,26 @@ func resourceCluster() *schema.Resource {
 							Required:     true,
 							ValidateFunc: validation.IntAtLeast(1),
 						},
+						"autoscale": {
+							Type:     schema.TypeList,
+							Required: true,
+							MinItems: 1,
+							MaxItems: 1,
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									"min_replicas": {
+										Type:     schema.TypeInt,
+										Optional: true,
+										Default:  0,
+									},
+									"max_replicas": {
+										Type:     schema.TypeInt,
+										Optional: true,
+										Default:  0,
+									},
+								},
+							},
+						},
 						"flavor": {
 							Type:         schema.TypeString,
 							Required:     true,
@@ -113,11 +133,13 @@ func resourceCluster() *schema.Resource {
 
 func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*gometakube.Client)
-	if dc, err := getClusterDatacenter(client, d.Get("dc").(string)); err != nil {
+	if minReplicas, maxReplicas, err := checkClusterAutoscaleValid(d); err != nil {
 		return err
-	} else if err := checkClusterNodedeplImage(client, dc, d); err != nil {
+	} else if dc, err := getClusterDatacenter(client, d.Get("dc").(string)); err != nil {
 		return err
 	} else if err := checkClusterTenantValid(client, dc, d); err != nil {
+		return err
+	} else if err := checkClusterNodedeplImage(client, dc, d); err != nil {
 		return err
 	} else {
 		nodedepl := d.Get("nodedepl").([]interface{})[0].(map[string]interface{})
@@ -162,7 +184,9 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 							},
 						},
 					},
-					Replicas: uint(nodedepl["replicas"].(int)),
+					Replicas:    uint(nodedepl["replicas"].(int)),
+					MinReplicas: uint(minReplicas),
+					MaxReplicas: uint(maxReplicas),
 				},
 			},
 		}
@@ -179,16 +203,16 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*gometakube.Client)
 	id := d.Id()
-	project := d.Get("project_id").(string)
+	projectID := d.Get("project_id").(string)
 	if dc, err := getClusterDatacenter(client, d.Get("dc").(string)); err != nil {
 		return err
-	} else if obj, err := getCluster(client, project, dc.Spec.Seed, id); err != nil {
+	} else if obj, err := getCluster(client, projectID, dc.Spec.Seed, id); err != nil {
 		return err
 	} else if obj == nil || obj.DeletionTimestamp != nil {
 		// Cluster was deleted
 		d.SetId("")
 		return nil
-	} else if nodeDeployment, err := getClusterNodeDeployment(client, project, dc.Spec.Seed, id, d.Get("nodedepl.0.name").(string)); err != nil {
+	} else if nodeDeployment, err := getClusterNodeDeployment(client, projectID, dc.Spec.Seed, id, d.Get("nodedepl.0.name").(string)); err != nil {
 		return err
 	} else {
 		d.Set("name", obj.Name)
@@ -197,7 +221,7 @@ func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
 		d.Set("dc", obj.Spec.Cloud.DataCenter)
 		d.Set("audit_logging", obj.Spec.AuditLogging.Enabled)
 
-		d.Set("nodedepl.0.replicas", nodeDeployment.Spec.Replicas)
+		d.Set("nodedepl", nodeDeploymentUpdatesMap(nodeDeployment))
 		return nil
 	}
 }
@@ -236,8 +260,10 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 			d.SetPartial("audit_logging")
 		}
 	}
-	if d.HasChanges("nodedepl.0.replicas", "nodedepl.0.flavor", "nodedepl.0.image", "nodedepl.0.use_floating_ip") {
-		if dc, err := getClusterDatacenter(client, d.Get("dc").(string)); err != nil {
+	if d.HasChanges("nodedepl.0.replicas", "nodedepl.0.flavor", "nodedepl.0.image", "nodedepl.0.use_floating_ip", "nodedepl.0.autoscale") {
+		if minReplicas, maxReplicas, err := checkClusterAutoscaleValid(d); err != nil {
+			return err
+		} else if dc, err := getClusterDatacenter(client, d.Get("dc").(string)); err != nil {
 			return err
 		} else if nodedepl, err := getClusterNodeDeployment(client, projectID, dc.Spec.Seed, d.Id(), d.Get("nodedepl.0.name").(string)); err != nil {
 			return err
@@ -246,6 +272,8 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 		} else {
 			patch := &gometakube.NodeDeploymentsPatchRequest{Spec: nodedepl.Spec}
 			patch.Spec.Replicas = uint(d.Get("nodedepl.0.replicas").(int))
+			patch.Spec.MinReplicas = uint(minReplicas)
+			patch.Spec.MaxReplicas = uint(maxReplicas)
 			patch.Spec.Template.Cloud.Openstack.Flavor = d.Get("nodedepl.0.flavor").(string)
 			patch.Spec.Template.Cloud.Openstack.Image = d.Get("nodedepl.0.image").(string)
 			patch.Spec.Template.Cloud.Openstack.UseFloatingIP = d.Get("nodedepl.0.use_floating_ip").(bool)
@@ -253,10 +281,7 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 			if err != nil {
 				return fmt.Errorf("could not patch node deployment: %v", err)
 			}
-			d.SetPartial("nodedepl.0.replicas")
-			d.SetPartial("nodedepl.0.flavor")
-			d.SetPartial("nodedepl.0.image")
-			d.SetPartial("nodedepl.0.use_floating_ip")
+			d.SetPartial("nodedepl")
 		}
 	}
 
@@ -365,6 +390,22 @@ func checkClusterTenantValid(client *gometakube.Client, dc *gometakube.Datacente
 		strings.Join(available, "\n"))
 }
 
+func checkClusterAutoscaleValid(d *schema.ResourceData) (int, int, error) {
+	minReplicas := d.Get("nodedepl.0.autoscale.0.min_replicas").(int)
+	maxReplicas := d.Get("nodedepl.0.autoscale.0.max_replicas").(int)
+	if minReplicas == 0 && maxReplicas == 0 {
+		return 0, 0, nil
+	}
+	if minReplicas > maxReplicas {
+		return 0, 0, fmt.Errorf("autoscale min_replicas(%d) must be less than or equal to max_replicas(%d)", minReplicas, maxReplicas)
+	}
+	replicas := d.Get("nodedepl.0.replicas").(int)
+	if replicas > maxReplicas || replicas < minReplicas {
+		return 0, 0, fmt.Errorf("got autoscale settings [%d; %d], but replicas: %d", minReplicas, maxReplicas, replicas)
+	}
+	return minReplicas, maxReplicas, nil
+}
+
 func getClusterDatacenter(c *gometakube.Client, n string) (*gometakube.Datacenter, error) {
 	dc, err := c.Datacenters.Get(context.Background(), n)
 	if err != nil {
@@ -396,4 +437,18 @@ func getClusterNodeDeployment(c *gometakube.Client, prj, dc, cls, name string) (
 		}
 	}
 	return nil, fmt.Errorf("could not find node deployment with given name: %s", name)
+}
+
+func nodeDeploymentUpdatesMap(nodedepl *gometakube.NodeDeployment) []interface{} {
+	return []interface{}{map[string]interface{}{
+		"name":     nodedepl.Name,
+		"replicas": nodedepl.Spec.Replicas,
+		"autoscale": []interface{}{map[string]interface{}{
+			"min_replicas": nodedepl.Spec.MinReplicas,
+			"max_replicas": nodedepl.Spec.MaxReplicas,
+		}},
+		"flavor":          nodedepl.Spec.Template.Cloud.Openstack.Flavor,
+		"image":           nodedepl.Spec.Template.Cloud.Openstack.Image,
+		"use_floating_ip": nodedepl.Spec.Template.Cloud.Openstack.UseFloatingIP,
+	}}
 }

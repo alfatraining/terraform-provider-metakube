@@ -13,7 +13,7 @@ type NodeDeployment struct {
 type NodeDeploymentSpec struct {
 	Replicas    uint                       `json:"replicas"`
 	MinReplicas uint                       `json:"minReplicas"`
-	MacReplicas uint                       `json:"maxReplicas"`
+	MaxReplicas uint                       `json:"maxReplicas"`
 	Template    NodeDeploymentSpecTemplate `json:"template"`
 	Paused      bool                       `json:"paused,omitempty"`
 }

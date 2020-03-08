@@ -48,6 +48,11 @@ resource "metakube_cluster" "bar" {
 		name = "my-nodedepl"
 		replicas = 2
 
+		autoscale {
+		  min_replicas = 1
+		  max_replicas = 3
+		}
+
 		flavor = "l1.small"
 		image = "Rescue Ubuntu 16.04 sys11"
 		use_floating_ip = false
@@ -84,6 +89,11 @@ resource "metakube_cluster" "bar" {
 	nodedepl {
 		name = "my-nodedepl"
 		replicas = 1
+
+		autoscale {
+		  min_replicas = 1
+		  max_replicas = 2
+		}
 
 		flavor = "m1c.medium"
 		image = "Rescue Ubuntu 18.04 sys11"
@@ -127,7 +137,7 @@ func TestAccMetakubeCluster_CreateAndInPlaceUpdates(t *testing.T) {
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckClusterResourceCreated("metakube_cluster.bar"),
-					testAccCheckClustersNodeDeployment("metakube_cluster.bar", "my-nodedepl", "l1.small", "Rescue Ubuntu 16.04 sys11", false, 2),
+					testAccCheckClustersNodeDeployment("metakube_cluster.bar", "my-nodedepl", "l1.small", "Rescue Ubuntu 16.04 sys11", false, 2, 1, 3),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "name", "my-cluster"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "labels.version", "alpha"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "version", "1.17.3"),
@@ -138,6 +148,8 @@ func TestAccMetakubeCluster_CreateAndInPlaceUpdates(t *testing.T) {
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.#", "1"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.name", "my-nodedepl"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.replicas", "2"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.autoscale.0.min_replicas", "1"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.autoscale.0.max_replicas", "3"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.flavor", "l1.small"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.image", "Rescue Ubuntu 16.04 sys11"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.use_floating_ip", "false"),
@@ -147,11 +159,13 @@ func TestAccMetakubeCluster_CreateAndInPlaceUpdates(t *testing.T) {
 				Config: configUpdated,
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckClusterResourceCreated("metakube_cluster.bar"),
-					testAccCheckClustersNodeDeployment("metakube_cluster.bar", "my-nodedepl", "m1c.medium", "Rescue Ubuntu 18.04 sys11", true, 1),
+					testAccCheckClustersNodeDeployment("metakube_cluster.bar", "my-nodedepl", "m1c.medium", "Rescue Ubuntu 18.04 sys11", true, 1, 1, 2),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "name", "my-cluster-edit"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "labels.version", "beta"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "audit_logging", "false"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.replicas", "1"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.autoscale.0.min_replicas", "1"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.autoscale.0.max_replicas", "2"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.flavor", "m1c.medium"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.image", "Rescue Ubuntu 18.04 sys11"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "nodedepl.0.use_floating_ip", "true"),
@@ -209,7 +223,7 @@ func testAccCheckClusterResourceCreated(r string) resource.TestCheckFunc {
 	}
 }
 
-func testAccCheckClustersNodeDeployment(r, name, flavor, image string, floatingIP bool, replicas uint) resource.TestCheckFunc {
+func testAccCheckClustersNodeDeployment(r, name, flavor, image string, floatingIP bool, replicas, minReplicas, maxReplicas uint) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[r]
 		if !ok {
@@ -235,6 +249,12 @@ func testAccCheckClustersNodeDeployment(r, name, flavor, image string, floatingI
 		}
 		if nodedepl.Spec.Replicas != replicas {
 			return fmt.Errorf("want replicas: %v, got: %v", replicas, nodedepl.Spec.Replicas)
+		}
+		if nodedepl.Spec.MinReplicas != minReplicas {
+			return fmt.Errorf("want min_replicas: %v, got: %v", minReplicas, nodedepl.Spec.MinReplicas)
+		}
+		if nodedepl.Spec.MaxReplicas != maxReplicas {
+			return fmt.Errorf("want max_replicas: %v, got: %v", maxReplicas, nodedepl.Spec.MaxReplicas)
 		}
 		if want, got := flavor, nodedepl.Spec.Template.Cloud.Openstack.Flavor; want != got {
 			return fmt.Errorf("want flavor: %v, got: %v", want, got)
