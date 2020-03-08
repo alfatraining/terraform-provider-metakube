@@ -141,6 +141,10 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 		return err
 	} else if err := checkClusterNodedeplImage(client, dc, d); err != nil {
 		return err
+	} else if project, err := client.Projects.Get(context.Background(), d.Get("project_id").(string)); err != nil {
+		return err
+	} else if err := checkClusterDoesNotRedefineProjectLabels(project, d); err != nil {
+		return err
 	} else {
 		nodedepl := d.Get("nodedepl").([]interface{})[0].(map[string]interface{})
 		create := &gometakube.CreateClusterRequest{
@@ -214,9 +218,15 @@ func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
 		return nil
 	} else if nodeDeployment, err := getClusterNodeDeployment(client, projectID, dc.Spec.Seed, id, d.Get("nodedepl.0.name").(string)); err != nil {
 		return err
+	} else if project, err := client.Projects.Get(context.Background(), d.Get("project_id").(string)); err != nil {
+		return err
 	} else {
 		d.Set("name", obj.Name)
-		d.Set("labels", obj.Labels)
+		labelsToSet := obj.Labels
+		for k := range project.Labels {
+			delete(labelsToSet, k)
+		}
+		d.Set("labels", labelsToSet)
 		d.Set("version", obj.Spec.Version)
 		d.Set("dc", obj.Spec.Cloud.DataCenter)
 		d.Set("audit_logging", obj.Spec.AuditLogging.Enabled)
@@ -241,6 +251,10 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 			// Cluster was deleted
 			d.SetId("")
 			return nil
+		} else if project, err := client.Projects.Get(context.Background(), d.Get("project_id").(string)); err != nil {
+			return err
+		} else if err := checkClusterDoesNotRedefineProjectLabels(project, d); err != nil {
+			return err
 		} else {
 			patch := &gometakube.PatchClusterRequest{
 				Name:   d.Get("name").(string),
@@ -388,6 +402,16 @@ func checkClusterTenantValid(client *gometakube.Client, dc *gometakube.Datacente
 		specified,
 		dc.Metadata.Name,
 		strings.Join(available, "\n"))
+}
+
+func checkClusterDoesNotRedefineProjectLabels(project *gometakube.Project, d *schema.ResourceData) error {
+	clusterLabels := d.Get("labels").(map[string]interface{})
+	for k := range project.Labels {
+		if v, ok := clusterLabels[k]; ok {
+			return fmt.Errorf("cannot change labels inherited from project: %v=%v", k, v)
+		}
+	}
+	return nil
 }
 
 func checkClusterAutoscaleValid(d *schema.ResourceData) (int, int, error) {
