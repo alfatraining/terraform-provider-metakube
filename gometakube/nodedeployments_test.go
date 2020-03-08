@@ -1,6 +1,7 @@
 package gometakube
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -134,4 +135,59 @@ func TestNodeDeployments_Patch(t *testing.T) {
 	if want := &nodeDeployment; !reflect.DeepEqual(want, got) {
 		t.Fatalf("want: %+v, got: %+v", want, got)
 	}
+}
+
+func TestNodeDeployments_Create(t *testing.T) {
+	setup()
+	defer teardown()
+
+	path := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/nodedeployments", prj, dc, cls)
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPost)
+		v := new(NodeDeployment)
+		if err := json.NewDecoder(r.Body).Decode(v); err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(v, &nodeDeployment) {
+			t.Fatalf("want receive node deployment: %v, got: %v", nodeDeployment, v)
+		}
+		w.WriteHeader(http.StatusCreated)
+		fmt.Fprint(w, nodeDeploymentJSON)
+	})
+
+	got, err := client.NodeDeployments.Create(ctx, prj, dc, cls, &nodeDeployment)
+	testErrNil(t, err)
+	if !reflect.DeepEqual(got, &nodeDeployment) {
+		t.Fatalf("want: %+v, got: %+v", nodeDeployment, got)
+	}
+}
+
+func TestNodeDeployments_Get(t *testing.T) {
+	setup()
+	defer teardown()
+
+	path := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/nodedeployments/%s", prj, dc, cls, nodeDeployment.ID)
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodGet)
+		fmt.Fprint(w, nodeDeploymentJSON)
+	})
+
+	got, err := client.NodeDeployments.Get(ctx, prj, dc, cls, nodeDeployment.ID)
+	testErrNil(t, err)
+	if !reflect.DeepEqual(got, &nodeDeployment) {
+		t.Fatalf("want: %+v, got: %+v", nodeDeployment, got)
+	}
+}
+
+func TestNodeDeployments_Delete(t *testing.T) {
+	setup()
+	defer teardown()
+
+	path := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/nodedeployments/%s", prj, dc, cls, nodeDeployment.ID)
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodDelete)
+	})
+
+	err := client.NodeDeployments.Delete(ctx, prj, dc, cls, nodeDeployment.ID)
+	testErrNil(t, err)
 }

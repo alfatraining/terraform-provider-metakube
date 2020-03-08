@@ -35,19 +35,17 @@ type ProjectCreateAndUpdateRequest struct {
 // Create creates a project.
 func (svc *ProjectsService) Create(ctx context.Context, create *ProjectCreateAndUpdateRequest) (*Project, error) {
 	ret := new(Project)
-	if resp, err := svc.client.resourceCreate(ctx, projectsBasePath, create, ret); err != nil {
+	if err := svc.client.resourceCreate(ctx, projectsBasePath, create, ret); err != nil {
 		return nil, err
-	} else if resp.StatusCode != http.StatusCreated {
-		return nil, unexpectedResponseError(resp)
 	}
 	return ret, nil
 }
 
 // Get gets projects with given id.
 func (svc *ProjectsService) Get(ctx context.Context, id string) (*Project, error) {
-	url := projectResourcePath(id)
+	path := projectResourcePath(id)
 	ret := new(Project)
-	if resp, err := svc.client.resourceGet(ctx, url, ret); err != nil {
+	if resp, err := svc.client.resourceGet(ctx, path, ret); err != nil {
 		return nil, err
 	} else if resp.StatusCode == http.StatusNotFound {
 		return nil, nil
@@ -74,13 +72,8 @@ func (svc *ProjectsService) Update(ctx context.Context, id string, update *Proje
 
 // Delete deletes projects with given id.
 func (svc *ProjectsService) Delete(ctx context.Context, id string) error {
-	url := projectResourcePath(id)
-	if resp, err := svc.client.resourceDelete(ctx, url); err != nil {
-		return err
-	} else if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
-		return unexpectedResponseError(resp)
-	}
-	return nil
+	path := projectResourcePath(id)
+	return svc.client.resourceDelete(ctx, path)
 }
 
 func projectResourcePath(id string) string {

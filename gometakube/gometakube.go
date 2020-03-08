@@ -125,20 +125,28 @@ func (c *Client) resourceList(ctx context.Context, path string, ret interface{})
 	return c.Do(ctx, req, ret)
 }
 
-func (c *Client) resourceDelete(ctx context.Context, path string) (*http.Response, error) {
-	req, err := c.NewRequest(http.MethodDelete, path, nil)
-	if err != nil {
-		return nil, err
+func (c *Client) resourceDelete(ctx context.Context, path string) error {
+	if req, err := c.NewRequest(http.MethodDelete, path, nil); err != nil {
+		return err
+	} else if resp, err := c.Do(ctx, req, nil); err != nil {
+		return err
+	} else if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
+		return unexpectedResponseError(resp)
+	} else {
+		return nil
 	}
-	return c.Do(ctx, req, nil)
 }
 
-func (c *Client) resourceCreate(ctx context.Context, path string, v, ret interface{}) (*http.Response, error) {
-	req, err := c.NewRequest(http.MethodPost, path, v)
-	if err != nil {
-		return nil, err
+func (c *Client) resourceCreate(ctx context.Context, path string, v, ret interface{}) error {
+	if req, err := c.NewRequest(http.MethodPost, path, v); err != nil {
+		return err
+	} else if resp, err := c.Do(ctx, req, ret); err != nil {
+		return err
+	} else if resp.StatusCode != http.StatusCreated {
+		return unexpectedResponseError(resp)
+	} else {
+		return nil
 	}
-	return c.Do(ctx, req, &ret)
 }
 
 func (c *Client) resourceGet(ctx context.Context, path string, ret interface{}) (*http.Response, error) {

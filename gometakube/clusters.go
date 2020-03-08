@@ -47,10 +47,8 @@ type CreateClusterRequest struct {
 // Create creates a cluster.
 func (svc *ClustersService) Create(ctx context.Context, prj, dc string, create *CreateClusterRequest) (*Cluster, error) {
 	ret := new(Cluster)
-	if resp, err := svc.client.resourceCreate(ctx, createClusterPath(prj, dc), create, ret); err != nil {
+	if err := svc.client.resourceCreate(ctx, createClusterPath(prj, dc), create, ret); err != nil {
 		return nil, err
-	} else if resp.StatusCode != http.StatusCreated {
-		return nil, unexpectedResponseError(resp)
 	}
 	return ret, nil
 }
@@ -58,12 +56,7 @@ func (svc *ClustersService) Create(ctx context.Context, prj, dc string, create *
 // Delete deletes cluster.
 func (svc *ClustersService) Delete(ctx context.Context, prj, dc, clusterID string) error {
 	path := clusterResourcePath(prj, dc, clusterID)
-	if resp, err := svc.client.resourceDelete(ctx, path); err != nil {
-		return fmt.Errorf("could not delete cluster: %v", err)
-	} else if resp.StatusCode != http.StatusOK {
-		return unexpectedResponseError(resp)
-	}
-	return nil
+	return svc.client.resourceDelete(ctx, path)
 }
 
 // Get returns cluster details.
