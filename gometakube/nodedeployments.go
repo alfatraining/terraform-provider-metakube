@@ -19,6 +19,10 @@ func nodeDeploymentResourcePath(prj, dc, cls, id string) string {
 	return fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/nodedeployments/%s", prj, dc, cls, id)
 }
 
+func clusterNodesUpgradePath(prj, dc, id string) string {
+	return fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/nodes/upgrades", prj, dc, id)
+}
+
 // List returns list of nodeDeployments.
 func (svc *NodeDeploymentsService) List(ctx context.Context, prj, dc, cls string) ([]NodeDeployment, error) {
 	path := nodeDeploymentsCreateListPath(prj, dc, cls)
@@ -74,4 +78,15 @@ func (svc *NodeDeploymentsService) Get(ctx context.Context, prj, dc, cls, id str
 func (svc *NodeDeploymentsService) Delete(ctx context.Context, prj, dc, cls, id string) error {
 	path := nodeDeploymentResourcePath(prj, dc, cls, id)
 	return svc.client.resourceDelete(ctx, path)
+}
+
+// UpgradeNodesRequest is a body of a request to upgrade.
+type UpgradeNodesRequest struct {
+	Version string `json:"version,omitempty"`
+}
+
+// Upgrade upgrades nodes.
+func (svc *NodeDeploymentsService) Upgrade(ctx context.Context, prj, dc, cls string, req *UpgradeNodesRequest) error {
+	path := clusterNodesUpgradePath(prj, dc, cls)
+	return svc.client.resourcePut(ctx, path, req, nil)
 }

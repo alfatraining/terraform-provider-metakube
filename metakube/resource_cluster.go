@@ -37,8 +37,7 @@ func resourceCluster() *schema.Resource {
 			"version": {
 				Type:         schema.TypeString,
 				Required:     true,
-				ForceNew:     true,
-				ValidateFunc: validation.StringInSlice([]string{"1.17.3", "1.15.10", "1.16.7"}, false),
+				ValidateFunc: validation.NoZeroValues,
 			},
 			"dc": {
 				Type:         schema.TypeString,
@@ -145,6 +144,8 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 		return err
 	} else if err := checkClusterDoesNotRedefineProjectLabels(project, d); err != nil {
 		return err
+	} else if clusterVersion, err := getClusterVersionToUse(client, d.Get("version").(string)); err != nil {
+		return err
 	} else {
 		nodedepl := d.Get("nodedepl").([]interface{})[0].(map[string]interface{})
 		create := &gometakube.CreateClusterRequest{
@@ -152,7 +153,7 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 				Name:   d.Get("name").(string),
 				Labels: clusterLabelsMap(d),
 				Spec: &gometakube.ClusterSpec{
-					Version: d.Get("version").(string),
+					Version: clusterVersion,
 					AuditLogging: gometakube.ClusterSpecAuditLogging{
 						Enabled: d.Get("audit_logging").(bool),
 					},
@@ -227,7 +228,10 @@ func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
 			delete(labelsToSet, k)
 		}
 		d.Set("labels", labelsToSet)
-		d.Set("version", obj.Spec.Version)
+		version := d.Get("version").(string)
+		if obj.Spec.Version[:len(version)] != version {
+			d.Set("version", obj.Spec.Version)
+		}
 		d.Set("dc", obj.Spec.Cloud.DataCenter)
 		d.Set("audit_logging", obj.Spec.AuditLogging.Enabled)
 
@@ -241,11 +245,12 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 	defer d.Partial(false)
 	client := meta.(*gometakube.Client)
 	projectID := d.Get("project_id").(string)
-
+	dc, err := getClusterDatacenter(client, d.Get("dc").(string))
+	if err != nil {
+		return err
+	}
 	if d.HasChanges("name", "labels", "audit_logging") {
-		if dc, err := getClusterDatacenter(client, d.Get("dc").(string)); err != nil {
-			return err
-		} else if cluster, err := getCluster(client, projectID, dc.Spec.Seed, d.Id()); err != nil {
+		if cluster, err := getCluster(client, projectID, dc.Spec.Seed, d.Id()); err != nil {
 			return err
 		} else if cluster == nil {
 			// Cluster was deleted
@@ -274,10 +279,8 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 			d.SetPartial("audit_logging")
 		}
 	}
-	if d.HasChanges("nodedepl.0.replicas", "nodedepl.0.flavor", "nodedepl.0.image", "nodedepl.0.use_floating_ip", "nodedepl.0.autoscale") {
+	if d.HasChange("nodedepl") {
 		if minReplicas, maxReplicas, err := checkClusterAutoscaleValid(d); err != nil {
-			return err
-		} else if dc, err := getClusterDatacenter(client, d.Get("dc").(string)); err != nil {
 			return err
 		} else if nodedepl, err := getClusterNodeDeployment(client, projectID, dc.Spec.Seed, d.Id(), d.Get("nodedepl.0.name").(string)); err != nil {
 			return err
@@ -298,6 +301,52 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 			d.SetPartial("nodedepl")
 		}
 	}
+	if d.HasChange("version") {
+		versionPrefix := d.Get("version").(string)
+		if cluster, err := client.Clusters.Get(context.Background(), projectID, dc.Spec.Seed, d.Id()); err != nil {
+			return err
+		} else if clusterVersionsHasPrefix(cluster.Spec.Version, versionPrefix) {
+			return nil
+		} else if versionToUse, err := getClusterVersionToUse(client, versionPrefix); err != nil {
+			return err
+		} else if invalidUpgrade, err := clusterVersionBigger(cluster.Spec.Version, versionToUse); err != nil {
+			return nil
+		} else if invalidUpgrade {
+			return fmt.Errorf("cluster version cannot be downgraded")
+		} else {
+			// Upgrade cluster continuously to desired version.
+			for {
+				version, err := getClusterVersionToUpgradeInto(client, projectID, dc.Spec.Seed, d.Id())
+				if version == "" {
+					if clusterVersionsHasPrefix(cluster.Spec.Version, versionPrefix) {
+						break
+					}
+					return fmt.Errorf("cluster has no further upgrades, stuck at %s", cluster.Spec.Version)
+				}
+				patch := &gometakube.PatchClusterRequest{
+					Spec: &gometakube.PatchClusterRequestSpec{
+						Version: version,
+					},
+				}
+				cluster, err = client.Clusters.Patch(context.Background(), projectID, dc.Spec.Seed, d.Id(), patch)
+				if err != nil {
+					return fmt.Errorf("could not patch cluster (is cluster provisioning compete?). error: %v", err)
+				}
+				if err := waitForClusterHealthy(client, projectID, dc.Spec.Seed, d.Id()); err != nil {
+					return err
+				}
+				if cluster.Spec.Version == versionToUse {
+					break
+				}
+			}
+			err = client.NodeDeployments.Upgrade(context.Background(), projectID, dc.Spec.Seed, d.Id(), &gometakube.UpgradeNodesRequest{
+				Version: cluster.Spec.Version,
+			})
+			if err != nil {
+				return fmt.Errorf("could not upgrade cluster nodes: %v", err)
+			}
+		}
+	}
 
 	return nil
 }
@@ -311,8 +360,29 @@ func resourceClusterDelete(d *schema.ResourceData, meta interface{}) error {
 	} else if err := client.Clusters.Delete(context.Background(), project, dc.Spec.Seed, id); err != nil {
 		return fmt.Errorf("could not delete cluster: %v", err)
 	} else {
-		return nil
+		return waitForClusterDelete(client, project, dc.Spec.Seed, id)
 	}
+}
+
+func waitForClusterDelete(client *gometakube.Client, prj, dc, id string) error {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	timeout := 10 * 60
+	n := 0
+	for range ticker.C {
+		v, err := client.Clusters.Get(context.Background(), prj, dc, id)
+		if err != nil {
+			return fmt.Errorf("couldn't check cluster delete: %v", err)
+		}
+		if v == nil {
+			return nil
+		}
+		if n > timeout {
+			return fmt.Errorf("Timeout waiting to create delete")
+		}
+		n++
+	}
+	return nil
 }
 
 func waitForClusterRunningAndNodeDeploymentCreate(client *gometakube.Client, prj, dc, cls, nodedepl string) error {
@@ -412,6 +482,46 @@ func checkClusterDoesNotRedefineProjectLabels(project *gometakube.Project, d *sc
 		}
 	}
 	return nil
+}
+
+func getClusterVersionToUse(c *gometakube.Client, prefix string) (string, error) {
+	versions, err := c.Clusters.Upgrades(context.Background())
+	if err != nil {
+		return "", fmt.Errorf("could not get available cluster versions: %v", err)
+	}
+	return maxVersionWithPrefix(versions, prefix)
+}
+
+func getClusterVersionToUpgradeInto(c *gometakube.Client, prj, dc, id string) (string, error) {
+	versions, err := c.Clusters.ClusterUpgrades(context.Background(), prj, dc, id)
+	if err != nil {
+		return "", err
+	}
+	return maxVersionWithPrefix(versions, "")
+}
+
+func maxVersionWithPrefix(versions []gometakube.ClusterUpgrade, prefix string) (string, error) {
+	if len(versions) == 0 {
+		return "", fmt.Errorf("empty list of cluster versions returned from api")
+	}
+	ret := ""
+	versionsStr := make([]string, 0)
+	for _, item := range versions {
+		if clusterVersionsHasPrefix(item.Version, prefix) {
+			if ret == "" {
+				ret = item.Version
+			} else if bigger, err := clusterVersionBigger(item.Version, ret); err != nil {
+				return "", err
+			} else if bigger {
+				ret = item.Version
+			}
+		}
+		versionsStr = append(versionsStr, item.Version)
+	}
+	if ret == "" {
+		return "", fmt.Errorf("could not find versions prefixed by: %s, available versions are: %s", prefix, strings.Join(versionsStr, ", "))
+	}
+	return ret, nil
 }
 
 func checkClusterAutoscaleValid(d *schema.ResourceData) (int, int, error) {

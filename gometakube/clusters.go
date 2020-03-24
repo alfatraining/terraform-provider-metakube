@@ -22,6 +22,10 @@ func clusterResourceHealthPath(prj, dc, clusterID string) string {
 	return fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/health", prj, dc, clusterID)
 }
 
+func clusterUpgradesPath(prj, dc, clusterID string) string {
+	return fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/upgrades", prj, dc, clusterID)
+}
+
 // ClustersService handles comminication with cluster related endpoints.
 type ClustersService struct {
 	client *Client
@@ -83,6 +87,7 @@ type PatchClusterRequest struct {
 
 // PatchClusterRequestSpec fields allowed to change on cluster spec in place.
 type PatchClusterRequestSpec struct {
+	Version      string                   `json:"version,omitempty"`
 	AuditLogging *ClusterSpecAuditLogging `json:"auditLogging,omitempty"`
 }
 
@@ -111,6 +116,35 @@ func (svc *ClustersService) Health(ctx context.Context, prj, dc, id string) (*Cl
 		return nil, err
 	}
 	if resp, err := svc.client.Do(ctx, req, ret); err != nil {
+		return nil, err
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, unexpectedResponseError(resp)
+	}
+	return ret, nil
+}
+
+// ClusterUpgrade is a cluster version possible to upgrade into.
+type ClusterUpgrade struct {
+	Version string `json:"version"`
+	Defailt bool   `json:"default"`
+}
+
+// Upgrades lists all versions which don't result in automatic updates.
+func (svc *ClustersService) Upgrades(ctx context.Context) ([]ClusterUpgrade, error) {
+	ret := make([]ClusterUpgrade, 0)
+	if resp, err := svc.client.resourceList(ctx, "/api/v1/upgrades/cluster", &ret); err != nil {
+		return nil, err
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, unexpectedResponseError(resp)
+	}
+	return ret, nil
+}
+
+// ClusterUpgrades returns upgrades for a cluster.
+func (svc *ClustersService) ClusterUpgrades(ctx context.Context, prj, dc, id string) ([]ClusterUpgrade, error) {
+	ret := make([]ClusterUpgrade, 0)
+	path := clusterUpgradesPath(prj, dc, id)
+	if resp, err := svc.client.resourceList(ctx, path, &ret); err != nil {
 		return nil, err
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, unexpectedResponseError(resp)

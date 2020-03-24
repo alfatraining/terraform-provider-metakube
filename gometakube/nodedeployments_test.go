@@ -191,3 +191,24 @@ func TestNodeDeployments_Delete(t *testing.T) {
 	err := client.NodeDeployments.Delete(ctx, prj, dc, cls, nodeDeployment.ID)
 	testErrNil(t, err)
 }
+
+func TestNodeDeployments_Upgrade(t *testing.T) {
+	setup()
+	defer teardown()
+
+	want := &UpgradeNodesRequest{
+		Version: "1.17.5",
+	}
+	got := new(UpgradeNodesRequest)
+	path := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/nodes/upgrades", prj, dc, cls)
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPut)
+		json.NewDecoder(r.Body).Decode(got)
+	})
+
+	err := client.NodeDeployments.Upgrade(ctx, prj, dc, cls, want)
+	testErrNil(t, err)
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("wanted upgrade request: %+v, got: %+v", want, got)
+	}
+}

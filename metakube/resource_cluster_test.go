@@ -37,7 +37,7 @@ resource "metakube_cluster" "bar" {
 	labels = {
 		"version" = "alpha"
 	}
-	version = "1.17.3"
+	version_prefix = "1.17"
 	dc = "%s"
 	tenant = "%s"
 	provider_username = "%s"
@@ -79,7 +79,7 @@ resource "metakube_cluster" "bar" {
 	labels = {
 		"version" = "beta"
 	}
-	version = "1.17.3"
+	version_prefix = "1.17"
 	dc = "%s"
 	tenant = "%s"
 	provider_username = "%s"
@@ -140,7 +140,7 @@ func TestAccMetakubeCluster_CreateAndInPlaceUpdates(t *testing.T) {
 					testAccCheckClustersNodeDeployment("metakube_cluster.bar", "my-nodedepl", "l1.small", "Rescue Ubuntu 16.04 sys11", false, 2, 1, 3),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "name", "my-cluster"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "labels.version", "alpha"),
-					resource.TestCheckResourceAttr("metakube_cluster.bar", "version", "1.17.3"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "version_prefix", "1.17"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "dc", testDC),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "audit_logging", "true"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "provider_username", testProviderUsername),

@@ -113,8 +113,8 @@ func TestClusters_Create(t *testing.T) {
 
 	prj := "the-proj"
 	dc := "bki1"
-	url := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters", prj, dc)
-	mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
+	path := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters", prj, dc)
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodPost)
 		v := &CreateClusterRequest{}
 		if err := json.NewDecoder(r.Body).Decode(v); err != nil {
@@ -142,9 +142,9 @@ func TestClusters_Delete(t *testing.T) {
 	prj := "the-proj"
 	dc := "bk11"
 	cls := "the-cluster"
-	url := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s", prj, dc, cls)
+	path := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s", prj, dc, cls)
 	sentDelete := false
-	mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodDelete)
 		sentDelete = true
 	})
@@ -163,8 +163,8 @@ func TestClusters_Get(t *testing.T) {
 	prj := "the-prj"
 	dc := "thedc"
 	cls := "thecluster"
-	url := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s", prj, dc, cls)
-	mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
+	path := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s", prj, dc, cls)
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodGet)
 		fmt.Fprint(w, clusterJSON)
 	})
@@ -183,8 +183,8 @@ func TestClusters_Patch(t *testing.T) {
 	prj := "the-prj"
 	dc := "thedc"
 	cls := "thecluster"
-	url := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s", prj, dc, cls)
-	mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
+	path := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s", prj, dc, cls)
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodPatch)
 		fmt.Fprint(w, clusterJSON)
 	})
@@ -235,8 +235,8 @@ func TestClusters_Health(t *testing.T) {
 	prj := "the-proj"
 	dc := "thedc"
 	cls := "thecluster"
-	url := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/health", prj, dc, cls)
-	mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
+	path := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/health", prj, dc, cls)
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodGet)
 		fmt.Fprint(w, clusterHealthJSON)
 	})
@@ -246,5 +246,45 @@ func TestClusters_Health(t *testing.T) {
 
 	if want := &clusterHealth; !reflect.DeepEqual(want, got) {
 		t.Fatalf("want: %+v, err: %+v", want, got)
+	}
+}
+
+func TestClusters_Upgrades(t *testing.T) {
+	setup()
+	defer teardown()
+	upgradesWant := []ClusterUpgrade{
+		{Version: "1.16.8"},
+		{Version: "1.17.4", Defailt: true},
+	}
+	path := "/api/v1/upgrades/cluster"
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodGet)
+		fmt.Fprint(w, `[{ "version": "1.16.8" }, { "version": "1.17.4", "default": true }]`)
+	})
+
+	got, err := client.Clusters.Upgrades(ctx)
+	testErrNil(t, err)
+	if !reflect.DeepEqual(upgradesWant, got) {
+		t.Fatalf("want upgrades: %+v, got: %+v", upgradesWant, got)
+	}
+}
+
+func TestClusters_Upgrade(t *testing.T) {
+	setup()
+	defer teardown()
+	prj := "theproject"
+	dc := "somedc"
+	id := "id"
+	path := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/upgrades", prj, dc, id)
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodGet)
+		fmt.Fprint(w, `[{ "version": "1.16.8" }]`)
+	})
+
+	got, err := client.Clusters.ClusterUpgrades(ctx, prj, dc, id)
+	testErrNil(t, err)
+	want := []ClusterUpgrade{{Version: "1.16.8"}}
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("want cluster upgrades: %v, got: %v", want, got)
 	}
 }

@@ -157,6 +157,20 @@ func (c *Client) resourceGet(ctx context.Context, path string, ret interface{}) 
 	return c.Do(ctx, req, &ret)
 }
 
+func (c *Client) resourcePut(ctx context.Context, path string, put, ret interface{}) error {
+	req, err := c.NewRequest(http.MethodPut, path, put)
+	if err != nil {
+		return err
+	}
+	if resp, err := c.Do(ctx, req, ret); err != nil {
+		return err
+	} else if resp.StatusCode != http.StatusOK {
+		return unexpectedResponseError(resp)
+	} else {
+		return nil
+	}
+}
+
 func (c *Client) resourcePatch(ctx context.Context, path string, patch, ret interface{}) error {
 	req, err := c.NewRequest(http.MethodPatch, path, patch)
 	if err != nil {
