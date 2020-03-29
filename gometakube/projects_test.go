@@ -71,22 +71,12 @@ var (
 )
 
 func TestProjects_List(t *testing.T) {
-	setup()
-	defer teardown()
-
 	projectsJSON := fmt.Sprintf("[%s]", projectJSON)
-
-	mux.HandleFunc("/api/v1/projects", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, http.MethodGet)
-		fmt.Fprint(w, projectsJSON)
+	path := "/api/v1/projects"
+	want := []Project{project}
+	testResourceList(t, projectsJSON, path, want, func() (interface{}, error) {
+		return client.Projects.List(ctx)
 	})
-
-	got, err := client.Projects.List(ctx)
-	testErrNil(t, err)
-
-	if want := []Project{project}; !reflect.DeepEqual(want, got) {
-		t.Fatalf("want: %+v, got: %+v", want, got)
-	}
 }
 
 func TestProjects_Create(t *testing.T) {
@@ -140,14 +130,10 @@ func TestProject_Get(t *testing.T) {
 }
 
 func TestProject_Delete(t *testing.T) {
-	setup()
-	defer teardown()
-
-	mux.HandleFunc("/api/v1/projects/"+project.ID, func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, http.MethodDelete)
+	path := "/api/v1/projects/" + project.ID
+	testResourceDelete(t, path, func() error {
+		return client.Projects.Delete(ctx, project.ID)
 	})
-
-	testErrNil(t, client.Projects.Delete(ctx, project.ID))
 }
 
 func TestProject_Update(t *testing.T) {

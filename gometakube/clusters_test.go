@@ -84,22 +84,13 @@ var (
 )
 
 func TestClusters_List(t *testing.T) {
-	setup()
-	defer teardown()
-
 	clustersJSON := fmt.Sprintf("[%s]", clusterJSON)
 	prj := "foo"
-	mux.HandleFunc("/api/v1/projects/foo/clusters", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, http.MethodGet)
-		fmt.Fprint(w, clustersJSON)
+	path := fmt.Sprintf("/api/v1/projects/%s/clusters", prj)
+
+	testResourceList(t, clustersJSON, path, []Cluster{cluster}, func() (interface{}, error) {
+		return client.Clusters.List(ctx, prj)
 	})
-
-	got, err := client.Clusters.List(ctx, prj)
-	testErrNil(t, err)
-
-	if want := []Cluster{cluster}; !reflect.DeepEqual(want, got) {
-		t.Fatalf("want: %+v, got: %+v", want, got)
-	}
 }
 
 func TestClusters_Create(t *testing.T) {
@@ -131,29 +122,18 @@ func TestClusters_Create(t *testing.T) {
 	testErrNil(t, err)
 
 	if want := createRequest.Cluster; want.ID != got.ID {
-		t.Fatalf("want: %v, got: %v", want, got)
+		t.Fatalf("want: %+v, got: %+v", want, got)
 	}
 }
 
 func TestClusters_Delete(t *testing.T) {
-	setup()
-	defer teardown()
-
 	prj := "the-proj"
 	dc := "bk11"
 	cls := "the-cluster"
 	path := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s", prj, dc, cls)
-	sentDelete := false
-	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, http.MethodDelete)
-		sentDelete = true
+	testResourceDelete(t, path, func() error {
+		return client.Clusters.Delete(ctx, prj, dc, cls)
 	})
-
-	err := client.Clusters.Delete(ctx, prj, dc, cls)
-	testErrNil(t, err)
-	if !sentDelete {
-		t.Fatalf("not received request to delete")
-	}
 }
 
 func TestClusters_Get(t *testing.T) {

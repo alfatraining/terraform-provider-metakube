@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -101,4 +102,41 @@ func testMethod(t *testing.T, r *http.Request, method string) {
 func testParseTime(s string) *time.Time {
 	ret, _ := time.Parse(time.RFC3339, s)
 	return &ret
+}
+
+func testResourceList(t *testing.T, listJSON, path string, want interface{}, call func() (interface{}, error)) {
+	t.Helper()
+
+	setup()
+	defer teardown()
+
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodGet)
+		fmt.Fprint(w, listJSON)
+	})
+
+	if got, err := call(); err != nil {
+		t.Fatalf("could not list: %v", err)
+	} else if !reflect.DeepEqual(want, got) {
+		t.Fatalf("want: %v, got: %v", want, got)
+	}
+}
+
+func testResourceDelete(t *testing.T, path string, call func() error) {
+	t.Helper()
+
+	setup()
+	defer teardown()
+
+	sentDelete := false
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodDelete)
+		sentDelete = true
+	})
+
+	err := call()
+	testErrNil(t, err)
+	if !sentDelete {
+		t.Fatalf("not received request to delete")
+	}
 }

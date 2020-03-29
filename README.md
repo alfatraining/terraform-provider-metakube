@@ -1,7 +1,8 @@
 # Resources
 
 * `metakube_project` metakube project
-* `matekube_cluster` represents k8s cluster on openstack provider.
+* `matekube_cluster` represents k8s cluster on openstack provider
+* `metakube_sshkey` ssh key to upload to cloud.
 
 
 Example terraform file [./examples/main.tf](/examples/main.tf)

@@ -34,6 +34,14 @@ func resourceCluster() *schema.Resource {
 				Type:     schema.TypeMap,
 				Optional: true,
 			},
+			"sshkeys": {
+				Type:     schema.TypeSet,
+				Optional: true,
+				Elem: &schema.Schema{
+					Type:         schema.TypeString,
+					ValidateFunc: validation.NoZeroValues,
+				},
+			},
 			"version": {
 				Type:         schema.TypeString,
 				Required:     true,
@@ -201,6 +209,9 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 			return fmt.Errorf("could not create cluster: %v", err)
 		}
 		d.SetId(obj.ID)
+		if err := manageSSHKeysInCluster(client, nil, d.Get("sshkeys"), prj, dc.Spec.Seed, d.Id()); err != nil {
+			return err
+		}
 		return waitForClusterRunningAndNodeDeploymentCreate(client, prj, dc.Spec.Seed, obj.ID, d.Get("nodedepl.0.name").(string))
 	}
 }
@@ -219,8 +230,10 @@ func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
 		return nil
 	} else if nodeDeployment, err := getClusterNodeDeployment(client, projectID, dc.Spec.Seed, id, d.Get("nodedepl.0.name").(string)); err != nil {
 		return err
-	} else if project, err := client.Projects.Get(context.Background(), d.Get("project_id").(string)); err != nil {
+	} else if project, err := client.Projects.Get(context.Background(), projectID); err != nil {
 		return err
+	} else if sshkeys, err := client.SSHKeys.ListAssigned(context.Background(), projectID, dc.Spec.Seed, id); err != nil {
+		return fmt.Errorf("could not list sshkeys assinged to cluster: %v", err)
 	} else {
 		d.Set("name", obj.Name)
 		labelsToSet := obj.Labels
@@ -236,6 +249,12 @@ func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
 		d.Set("audit_logging", obj.Spec.AuditLogging.Enabled)
 
 		d.Set("nodedepl", nodeDeploymentUpdatesMap(nodeDeployment))
+
+		keynames := make([]string, 0)
+		for _, key := range sshkeys {
+			keynames = append(keynames, key.Name)
+		}
+		d.Set("sshkeys", keynames)
 		return nil
 	}
 }
@@ -347,7 +366,12 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 			}
 		}
 	}
-
+	if d.HasChange("sshkeys") {
+		old, new := d.GetChange("sshkeys")
+		if err := manageSSHKeysInCluster(client, old, new, projectID, dc.Spec.Seed, d.Id()); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -362,6 +386,48 @@ func resourceClusterDelete(d *schema.ResourceData, meta interface{}) error {
 	} else {
 		return waitForClusterDelete(client, project, dc.Spec.Seed, id)
 	}
+}
+
+func manageSSHKeysInCluster(client *gometakube.Client, old, new interface{}, prj, dc, cls string) error {
+	allKeys, err := client.SSHKeys.List(context.Background(), prj)
+	if err != nil {
+		return fmt.Errorf("could not get list of available sshkeys to assign: %v", err)
+	}
+	actions := make(map[string]bool)
+	if old != nil {
+		for _, v := range old.(*schema.Set).List() {
+			actions[v.(string)] = false
+		}
+	}
+	if new != nil {
+		for _, v := range new.(*schema.Set).List() {
+			actions[v.(string)] = true
+		}
+	}
+	for v, action := range actions {
+		// action is true -> assign, action is false -> unassign.
+		var id string
+		for _, key := range allKeys {
+			if key.Name == v {
+				id = key.ID
+			}
+		}
+		if action {
+			if id == "" {
+				return fmt.Errorf("no ssh key with name `%s` found the the project", v)
+			}
+			_, err = client.SSHKeys.AssignToCluster(context.Background(), prj, dc, cls, id)
+			if err != nil {
+				return fmt.Errorf("could not assign sshkey to cluster: %v", err)
+			}
+		} else if id != "" {
+			err = client.SSHKeys.RemoveFromCluster(context.Background(), prj, dc, cls, id)
+			if err != nil {
+				return fmt.Errorf("could not unassign sshkey from cluster: %v", err)
+			}
+		}
+	}
+	return nil
 }
 
 func waitForClusterDelete(client *gometakube.Client, prj, dc, id string) error {

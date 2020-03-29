@@ -37,7 +37,10 @@ resource "metakube_cluster" "bar" {
 	labels = {
 		"version" = "alpha"
 	}
-	version_prefix = "1.17"
+	sshkeys = [
+		"dev"
+	]
+	version = "1.15"
 	dc = "%s"
 	tenant = "%s"
 	provider_username = "%s"
@@ -57,6 +60,12 @@ resource "metakube_cluster" "bar" {
 		image = "Rescue Ubuntu 16.04 sys11"
 		use_floating_ip = false
 	}
+}
+
+resource "metakube_sshkey" "my-key" {
+	project_id = metakube_project.cluster-project.id
+	name = "dev"
+	public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCut5oRyqeqYci3E9m6Z6mtxfqkiyb+xNFJM6+/sllhnMDX0vzrNj8PuIFfGkgtowKY//QWLgoB+RpvXqcD4bb4zPkLdXdJPtUf1eAoMh/qgyThUjBs3n7BXvXMDg1Wdj0gq/sTnPLvXsfrSVPjiZvWN4h0JdID2NLnwYuKIiltIn+IbUa6OnyFfOEpqb5XJ7H7LK1mUKTlQ/9CFROxSQf3YQrR9UdtASIeyIZL53WgYgU31Yqy7MQaY1y0fGmHsFwpCK6qFZj1DNruKl/IR1lLx/Bg3z9sDcoBnHKnzSzVels9EVlDOG6bW738ho269QAIrWQYBtznsvWKu5xZPuuj user@machine"
 }
 `, project, dc, tenant, username, password)
 }
@@ -79,7 +88,8 @@ resource "metakube_cluster" "bar" {
 	labels = {
 		"version" = "beta"
 	}
-	version_prefix = "1.17"
+	sshkeys = []
+	version = "1.17"
 	dc = "%s"
 	tenant = "%s"
 	provider_username = "%s"
@@ -99,6 +109,12 @@ resource "metakube_cluster" "bar" {
 		image = "Rescue Ubuntu 18.04 sys11"
 		use_floating_ip = true
 	}
+}
+
+resource "metakube_sshkey" "my-key" {
+	project_id = metakube_project.cluster-project.id
+	name = "dev"
+	public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCut5oRyqeqYci3E9m6Z6mtxfqkiyb+xNFJM6+/sllhnMDX0vzrNj8PuIFfGkgtowKY//QWLgoB+RpvXqcD4bb4zPkLdXdJPtUf1eAoMh/qgyThUjBs3n7BXvXMDg1Wdj0gq/sTnPLvXsfrSVPjiZvWN4h0JdID2NLnwYuKIiltIn+IbUa6OnyFfOEpqb5XJ7H7LK1mUKTlQ/9CFROxSQf3YQrR9UdtASIeyIZL53WgYgU31Yqy7MQaY1y0fGmHsFwpCK6qFZj1DNruKl/IR1lLx/Bg3z9sDcoBnHKnzSzVels9EVlDOG6bW738ho269QAIrWQYBtznsvWKu5xZPuuj user@machine"
 }
 `, project, dc, tenant, username, password)
 }
@@ -140,7 +156,7 @@ func TestAccMetakubeCluster_CreateAndInPlaceUpdates(t *testing.T) {
 					testAccCheckClustersNodeDeployment("metakube_cluster.bar", "my-nodedepl", "l1.small", "Rescue Ubuntu 16.04 sys11", false, 2, 1, 3),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "name", "my-cluster"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "labels.version", "alpha"),
-					resource.TestCheckResourceAttr("metakube_cluster.bar", "version_prefix", "1.17"),
+					resource.TestCheckResourceAttr("metakube_cluster.bar", "version", "1.15"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "dc", testDC),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "audit_logging", "true"),
 					resource.TestCheckResourceAttr("metakube_cluster.bar", "provider_username", testProviderUsername),

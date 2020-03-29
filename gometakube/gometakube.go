@@ -30,6 +30,7 @@ type Client struct {
 	Clusters        *ClustersService
 	NodeDeployments *NodeDeploymentsService
 	Openstack       *OpenstackService
+	SSHKeys         *SSHKeysService
 }
 
 // CreateOpt represent api clients construction option.
@@ -80,6 +81,7 @@ func NewClient(opt CreateOpt) *Client {
 	client.Clusters = &ClustersService{client}
 	client.NodeDeployments = &NodeDeploymentsService{client}
 	client.Openstack = &OpenstackService{client}
+	client.SSHKeys = &SSHKeysService{client}
 
 	return client
 }

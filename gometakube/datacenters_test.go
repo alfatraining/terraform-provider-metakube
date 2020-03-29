@@ -158,22 +158,10 @@ var datacenter = Datacenter{
 }
 
 func TestDatacenters_List(t *testing.T) {
-	setup()
-	defer teardown()
-
 	datacentersJSON := fmt.Sprintf(`[%s]`, datacenterJSON)
-
-	mux.HandleFunc("/api/v1/dc", func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, http.MethodGet)
-		fmt.Fprint(w, datacentersJSON)
+	testResourceList(t, datacentersJSON, "/api/v1/dc", []Datacenter{datacenter}, func() (interface{}, error) {
+		return client.Datacenters.List(ctx)
 	})
-
-	got, err := client.Datacenters.List(ctx)
-	testErrNil(t, err)
-
-	if want := []Datacenter{datacenter}; !reflect.DeepEqual(want, got) {
-		t.Fatalf("want: %+v, got: %+v", want, got)
-	}
 }
 
 func TestDatacenters_Get(t *testing.T) {

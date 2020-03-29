@@ -102,22 +102,12 @@ var nodeDeployment = NodeDeployment{
 }
 
 func TestNodeDeployments_List(t *testing.T) {
-	setup()
-	defer teardown()
-
 	nodeDeploymentsJSON := fmt.Sprintf("[%s]", nodeDeploymentJSON)
-	url := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/nodedeployments", prj, dc, cls)
-	mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, http.MethodGet)
-		fmt.Fprint(w, nodeDeploymentsJSON)
+	path := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/nodedeployments", prj, dc, cls)
+	want := []NodeDeployment{nodeDeployment}
+	testResourceList(t, nodeDeploymentsJSON, path, want, func() (interface{}, error) {
+		return client.NodeDeployments.List(ctx, prj, dc, cls)
 	})
-
-	got, err := client.NodeDeployments.List(ctx, prj, dc, cls)
-	testErrNil(t, err)
-
-	if want := []NodeDeployment{nodeDeployment}; !reflect.DeepEqual(want, got) {
-		t.Fatalf("want: %+v, got: %+v", want, got)
-	}
 }
 
 func TestNodeDeployments_Patch(t *testing.T) {
@@ -180,16 +170,10 @@ func TestNodeDeployments_Get(t *testing.T) {
 }
 
 func TestNodeDeployments_Delete(t *testing.T) {
-	setup()
-	defer teardown()
-
 	path := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/nodedeployments/%s", prj, dc, cls, nodeDeployment.ID)
-	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
-		testMethod(t, r, http.MethodDelete)
+	testResourceDelete(t, path, func() error {
+		return client.NodeDeployments.Delete(ctx, prj, dc, cls, nodeDeployment.ID)
 	})
-
-	err := client.NodeDeployments.Delete(ctx, prj, dc, cls, nodeDeployment.ID)
-	testErrNil(t, err)
 }
 
 func TestNodeDeployments_Upgrade(t *testing.T) {
