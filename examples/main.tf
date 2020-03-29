@@ -23,7 +23,7 @@ resource "metakube_cluster" "my-cluster" {
   ]
 
   name          = "my-cluster"     // has in-place update
-  version       = "1.17"           // k8s version. will use the version that has such prefix
+  version       = "1.17"           // prefix for k8s version. will use the version that has such prefix
   dc            = "syseleven-dbl1" // openstack datacenter, change forces new
   audit_logging = true             // has in-place update
 
