@@ -179,7 +179,7 @@ type ClusterSpecMachineNetwork struct {
 
 type ClusterSpecOIDC struct {
 	ClientId      string `json:"clientId,omitempty"`
-	lientSecret   string `json:"clientSecret,omitempty"`
+	ClientSecret  string `json:"clientSecret,omitempty"`
 	ExtraScopes   string `json:"extraScopes,omitempty"`
 	GroupsClaim   string `json:"groupsClaim,omitempty"`
 	IssuerUrl     string `json:"issuerUrl,omitempty"`

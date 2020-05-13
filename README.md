@@ -13,9 +13,9 @@ Example terraform file [./examples/main.tf](/examples/main.tf)
 
 Run tests:
 ```bash
-go test -v ./...
+make test
 ```
-## Acceptance tests 
+## Acceptance tests
 
 IMPORTANT: this tests provision real resources.
 
@@ -30,16 +30,16 @@ export ACC_PROVIDER_PASSWORD=<password>
 
 Run
 ```bash
-TF_ACC=1 go test -v ./...
+make testacc
 ```
 
 ## Manually
 
 You can find example configuration file to use as base at [./examples/main.tf](/examples/main.tf). It is single project consisting of single cluster with single node deployment.
 
-First, build provider.
+To compile the provider, run `make`. This will build the provider and put it in the current working directory.
 ```bash
-go build -o terraform-provider-metakube
+make
 ```
 
 Init terraform (so it knows about metakube provider)
