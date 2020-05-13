@@ -106,7 +106,8 @@ func TestNodeDeployments_List(t *testing.T) {
 	path := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/nodedeployments", prj, dc, cls)
 	want := []NodeDeployment{nodeDeployment}
 	testResourceList(t, nodeDeploymentsJSON, path, want, func() (interface{}, error) {
-		return client.NodeDeployments.List(ctx, prj, dc, cls)
+		l, _, err := client.NodeDeployments.List(ctx, prj, dc, cls)
+		return l, err
 	})
 }
 
@@ -120,7 +121,7 @@ func TestNodeDeployments_Patch(t *testing.T) {
 		fmt.Fprint(w, nodeDeploymentJSON)
 	})
 
-	got, err := client.NodeDeployments.Patch(ctx, prj, dc, cls, nodeDeployment.ID, &NodeDeploymentsPatchRequest{nodeDeployment.Spec})
+	got, _, err := client.NodeDeployments.Patch(ctx, prj, dc, cls, nodeDeployment.ID, &NodeDeploymentsPatchRequest{nodeDeployment.Spec})
 	testErrNil(t, err)
 	if want := &nodeDeployment; !reflect.DeepEqual(want, got) {
 		t.Fatalf("want: %+v, got: %+v", want, got)
@@ -145,7 +146,7 @@ func TestNodeDeployments_Create(t *testing.T) {
 		fmt.Fprint(w, nodeDeploymentJSON)
 	})
 
-	got, err := client.NodeDeployments.Create(ctx, prj, dc, cls, &nodeDeployment)
+	got, _, err := client.NodeDeployments.Create(ctx, prj, dc, cls, &nodeDeployment)
 	testErrNil(t, err)
 	if !reflect.DeepEqual(got, &nodeDeployment) {
 		t.Fatalf("want: %+v, got: %+v", nodeDeployment, got)
@@ -162,7 +163,7 @@ func TestNodeDeployments_Get(t *testing.T) {
 		fmt.Fprint(w, nodeDeploymentJSON)
 	})
 
-	got, err := client.NodeDeployments.Get(ctx, prj, dc, cls, nodeDeployment.ID)
+	got, _, err := client.NodeDeployments.Get(ctx, prj, dc, cls, nodeDeployment.ID)
 	testErrNil(t, err)
 	if !reflect.DeepEqual(got, &nodeDeployment) {
 		t.Fatalf("want: %+v, got: %+v", nodeDeployment, got)
@@ -172,7 +173,8 @@ func TestNodeDeployments_Get(t *testing.T) {
 func TestNodeDeployments_Delete(t *testing.T) {
 	path := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/nodedeployments/%s", prj, dc, cls, nodeDeployment.ID)
 	testResourceDelete(t, path, func() error {
-		return client.NodeDeployments.Delete(ctx, prj, dc, cls, nodeDeployment.ID)
+		_, err := client.NodeDeployments.Delete(ctx, prj, dc, cls, nodeDeployment.ID)
+		return err
 	})
 }
 
@@ -190,7 +192,7 @@ func TestNodeDeployments_Upgrade(t *testing.T) {
 		json.NewDecoder(r.Body).Decode(got)
 	})
 
-	err := client.NodeDeployments.Upgrade(ctx, prj, dc, cls, want)
+	_, err := client.NodeDeployments.Upgrade(ctx, prj, dc, cls, want)
 	testErrNil(t, err)
 	if !reflect.DeepEqual(want, got) {
 		t.Fatalf("wanted upgrade request: %+v, got: %+v", want, got)

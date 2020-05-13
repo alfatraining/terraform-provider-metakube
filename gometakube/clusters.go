@@ -32,14 +32,10 @@ type ClustersService struct {
 }
 
 // List returns list of clusters in project.
-func (svc *ClustersService) List(ctx context.Context, project string) ([]Cluster, error) {
+func (svc *ClustersService) List(ctx context.Context, project string) ([]Cluster, *http.Response, error) {
 	ret := make([]Cluster, 0)
-	if resp, err := svc.client.resourceList(ctx, clustersListPath(project), &ret); err != nil {
-		return nil, err
-	} else if resp.StatusCode != http.StatusOK {
-		return nil, unexpectedResponseError(resp)
-	}
-	return ret, nil
+	resp, err := svc.client.resourceList(ctx, clustersListPath(project), &ret)
+	return ret, resp, err
 }
 
 // CreateClusterRequest used to create a cluster.
@@ -49,29 +45,24 @@ type CreateClusterRequest struct {
 }
 
 // Create creates a cluster.
-func (svc *ClustersService) Create(ctx context.Context, prj, dc string, create *CreateClusterRequest) (*Cluster, error) {
+func (svc *ClustersService) Create(ctx context.Context, prj, dc string, create *CreateClusterRequest) (*Cluster, *http.Response, error) {
 	ret := new(Cluster)
-	return ret, svc.client.resourceCreate(ctx, createClusterPath(prj, dc), create, ret)
+	resp, err := svc.client.resourceCreate(ctx, createClusterPath(prj, dc), create, ret)
+	return ret, resp, err
 }
 
 // Delete deletes cluster.
-func (svc *ClustersService) Delete(ctx context.Context, prj, dc, clusterID string) error {
+func (svc *ClustersService) Delete(ctx context.Context, prj, dc, clusterID string) (*http.Response, error) {
 	path := clusterResourcePath(prj, dc, clusterID)
 	return svc.client.resourceDelete(ctx, path)
 }
 
 // Get returns cluster details.
-func (svc *ClustersService) Get(ctx context.Context, prj, dc, clusterID string) (*Cluster, error) {
+func (svc *ClustersService) Get(ctx context.Context, prj, dc, clusterID string) (*Cluster, *http.Response, error) {
 	path := clusterResourcePath(prj, dc, clusterID)
 	ret := new(Cluster)
-	if resp, err := svc.client.resourceGet(ctx, path, ret); err != nil {
-		return nil, err
-	} else if resp.StatusCode == http.StatusNotFound {
-		return nil, nil
-	} else if resp.StatusCode != http.StatusOK {
-		return nil, unexpectedResponseError(resp)
-	}
-	return ret, nil
+	resp, err := svc.client.resourceGet(ctx, path, ret)
+	return ret, resp, err
 }
 
 // PatchClusterRequest specifies fields to be changed on cluster.
@@ -89,13 +80,11 @@ type PatchClusterRequestSpec struct {
 }
 
 // Patch updates cluster.
-func (svc *ClustersService) Patch(ctx context.Context, prj, dc, clusterID string, patch *PatchClusterRequest) (*Cluster, error) {
+func (svc *ClustersService) Patch(ctx context.Context, prj, dc, clusterID string, patch *PatchClusterRequest) (*Cluster, *http.Response, error) {
 	path := clusterResourcePath(prj, dc, clusterID)
 	ret := new(Cluster)
-	if err := svc.client.resourcePatch(ctx, path, patch, ret); err != nil {
-		return nil, err
-	}
-	return ret, nil
+	resp, err := svc.client.resourcePatch(ctx, path, patch, ret)
+	return ret, resp, err
 }
 
 // Healthy returns whether all cluster components are ready.
@@ -105,19 +94,16 @@ func (h *ClusterHealth) Healthy() bool {
 		h.Scheduler & h.UserClusterControllerManager) == 1
 }
 
-func (svc *ClustersService) Health(ctx context.Context, prj, dc, id string) (*ClusterHealth, error) {
+// Health requests cluster's helth.
+func (svc *ClustersService) Health(ctx context.Context, prj, dc, id string) (*ClusterHealth, *http.Response, error) {
 	path := clusterResourceHealthPath(prj, dc, id)
 	ret := new(ClusterHealth)
 	req, err := svc.client.NewRequest(http.MethodGet, path, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if resp, err := svc.client.Do(ctx, req, ret); err != nil {
-		return nil, err
-	} else if resp.StatusCode != http.StatusOK {
-		return nil, unexpectedResponseError(resp)
-	}
-	return ret, nil
+	resp, err := svc.client.Do(ctx, req, ret)
+	return ret, resp, err
 }
 
 // ClusterUpgrade is a cluster version possible to upgrade into.
@@ -127,24 +113,16 @@ type ClusterUpgrade struct {
 }
 
 // Upgrades lists all versions which don't result in automatic updates.
-func (svc *ClustersService) Upgrades(ctx context.Context) ([]ClusterUpgrade, error) {
+func (svc *ClustersService) Upgrades(ctx context.Context) ([]ClusterUpgrade, *http.Response, error) {
 	ret := make([]ClusterUpgrade, 0)
-	if resp, err := svc.client.resourceList(ctx, "/api/v1/upgrades/cluster", &ret); err != nil {
-		return nil, err
-	} else if resp.StatusCode != http.StatusOK {
-		return nil, unexpectedResponseError(resp)
-	}
-	return ret, nil
+	resp, err := svc.client.resourceList(ctx, "/api/v1/upgrades/cluster", &ret)
+	return ret, resp, err
 }
 
 // ClusterUpgrades returns upgrades for a cluster.
-func (svc *ClustersService) ClusterUpgrades(ctx context.Context, prj, dc, id string) ([]ClusterUpgrade, error) {
+func (svc *ClustersService) ClusterUpgrades(ctx context.Context, prj, dc, id string) ([]ClusterUpgrade, *http.Response, error) {
 	ret := make([]ClusterUpgrade, 0)
 	path := clusterUpgradesPath(prj, dc, id)
-	if resp, err := svc.client.resourceList(ctx, path, &ret); err != nil {
-		return nil, err
-	} else if resp.StatusCode != http.StatusOK {
-		return nil, unexpectedResponseError(resp)
-	}
-	return ret, nil
+	resp, err := svc.client.resourceList(ctx, path, &ret)
+	return ret, resp, err
 }

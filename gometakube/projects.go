@@ -16,14 +16,10 @@ type ProjectsService struct {
 }
 
 // List returns list of all projects.
-func (svc *ProjectsService) List(ctx context.Context) ([]Project, error) {
+func (svc *ProjectsService) List(ctx context.Context) ([]Project, *http.Response, error) {
 	ret := make([]Project, 0)
-	if resp, err := svc.client.resourceList(ctx, projectsBasePath, &ret); err != nil {
-		return nil, err
-	} else if resp.StatusCode != http.StatusOK {
-		return nil, unexpectedResponseError(resp)
-	}
-	return ret, nil
+	resp, err := svc.client.resourceList(ctx, projectsBasePath, &ret)
+	return ret, resp, err
 }
 
 // ProjectCreateAndUpdateRequest payload to Create and Update a project.
@@ -33,45 +29,33 @@ type ProjectCreateAndUpdateRequest struct {
 }
 
 // Create creates a project.
-func (svc *ProjectsService) Create(ctx context.Context, create *ProjectCreateAndUpdateRequest) (*Project, error) {
+func (svc *ProjectsService) Create(ctx context.Context, create *ProjectCreateAndUpdateRequest) (*Project, *http.Response, error) {
 	ret := new(Project)
-	if err := svc.client.resourceCreate(ctx, projectsBasePath, create, ret); err != nil {
-		return nil, err
-	}
-	return ret, nil
+	resp, err := svc.client.resourceCreate(ctx, projectsBasePath, create, ret)
+	return ret, resp, err
 }
 
 // Get gets projects with given id.
-func (svc *ProjectsService) Get(ctx context.Context, id string) (*Project, error) {
+func (svc *ProjectsService) Get(ctx context.Context, id string) (*Project, *http.Response, error) {
 	path := projectResourcePath(id)
 	ret := new(Project)
-	if resp, err := svc.client.resourceGet(ctx, path, ret); err != nil {
-		return nil, err
-	} else if resp.StatusCode == http.StatusNotFound {
-		return nil, nil
-	} else if resp.StatusCode != http.StatusOK {
-		return nil, unexpectedResponseError(resp)
-	}
-	return ret, nil
+	resp, err := svc.client.resourceGet(ctx, path, ret)
+	return ret, resp, err
 }
 
 // Update updates a project.
-func (svc *ProjectsService) Update(ctx context.Context, id string, update *ProjectCreateAndUpdateRequest) (*Project, error) {
+func (svc *ProjectsService) Update(ctx context.Context, id string, update *ProjectCreateAndUpdateRequest) (*Project, *http.Response, error) {
 	req, err := svc.client.NewRequest(http.MethodPut, projectResourcePath(id), update)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	ret := new(Project)
-	if resp, err := svc.client.Do(ctx, req, &ret); err != nil {
-		return nil, err
-	} else if resp.StatusCode != http.StatusOK {
-		return nil, unexpectedResponseError(resp)
-	}
-	return ret, nil
+	resp, err := svc.client.Do(ctx, req, &ret)
+	return ret, resp, err
 }
 
 // Delete deletes projects with given id.
-func (svc *ProjectsService) Delete(ctx context.Context, id string) error {
+func (svc *ProjectsService) Delete(ctx context.Context, id string) (*http.Response, error) {
 	path := projectResourcePath(id)
 	return svc.client.resourceDelete(ctx, path)
 }

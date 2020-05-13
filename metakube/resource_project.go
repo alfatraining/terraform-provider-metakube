@@ -36,7 +36,7 @@ func resourceProjectCreate(d *schema.ResourceData, meta interface{}) error {
 		Labels: projectLabelsMap(d),
 	}
 	client := meta.(*gometakube.Client)
-	project, err := client.Projects.Create(context.Background(), create)
+	project, _, err := client.Projects.Create(context.Background(), create)
 	if err != nil {
 		return fmt.Errorf("could not create project: %v", err)
 	}
@@ -46,7 +46,7 @@ func resourceProjectCreate(d *schema.ResourceData, meta interface{}) error {
 
 func resourceProjectRead(d *schema.ResourceData, meta interface{}) error {
 	c := meta.(*gometakube.Client)
-	obj, err := c.Projects.Get(context.Background(), d.Id())
+	obj, _, err := c.Projects.Get(context.Background(), d.Id())
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func resourceProjectUpdate(d *schema.ResourceData, meta interface{}) error {
 		Labels: projectLabelsMap(d),
 	}
 	client := meta.(*gometakube.Client)
-	updated, err := client.Projects.Update(context.Background(), d.Id(), update)
+	updated, _, err := client.Projects.Update(context.Background(), d.Id(), update)
 	if err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func resourceProjectUpdate(d *schema.ResourceData, meta interface{}) error {
 
 func resourceProjectDelete(d *schema.ResourceData, meta interface{}) error {
 	c := meta.(*gometakube.Client)
-	err := c.Projects.Delete(context.Background(), d.Id())
+	_, err := c.Projects.Delete(context.Background(), d.Id())
 	if err != nil {
 		return err
 	}
@@ -100,8 +100,8 @@ func waitProjectCreatedAndActive(client *gometakube.Client, id string) error {
 	timeout := 120
 	n := 0
 	for range ticker.C {
-		project, _ := client.Projects.Get(context.Background(), id)
-		if project != nil && project.Status == "Active" {
+		project, _, err := client.Projects.Get(context.Background(), id)
+		if err == nil && project.Status == "Active" {
 			return nil
 		}
 		if n > timeout {

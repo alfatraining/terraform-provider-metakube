@@ -75,7 +75,7 @@ func TestOpenstack_Images(t *testing.T) {
 	domain := "Default"
 	path := "/api/v1/providers/openstack/images"
 	testConfigureOpenstackHandleFunc(t, dcName, username, password, domain, path, imagesJSON)
-	got, err := client.Openstack.Images(ctx, dcName, domain, username, password)
+	got, _, err := client.Openstack.Images(ctx, dcName, domain, username, password)
 	testErrNil(t, err)
 	if want := images; !reflect.DeepEqual(want, got) {
 		t.Fatalf("want: %+v, got: %+v", want, got)
@@ -93,7 +93,7 @@ func TestOpenstack_Tenants(t *testing.T) {
 	path := "/api/v1/providers/openstack/tenants"
 	testConfigureOpenstackHandleFunc(t, dcName, username, password, domain, path, tenantsJSON)
 
-	got, err := client.Openstack.Tenants(ctx, dcName, domain, username, password)
+	got, _, err := client.Openstack.Tenants(ctx, dcName, domain, username, password)
 	testErrNil(t, err)
 	if want := tenants; !reflect.DeepEqual(want, got) {
 		t.Fatalf("want: %+v, got: %+v", want, got)

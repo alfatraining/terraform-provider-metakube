@@ -24,15 +24,11 @@ func clusterNodesUpgradePath(prj, dc, id string) string {
 }
 
 // List returns list of nodeDeployments.
-func (svc *NodeDeploymentsService) List(ctx context.Context, prj, dc, cls string) ([]NodeDeployment, error) {
+func (svc *NodeDeploymentsService) List(ctx context.Context, prj, dc, cls string) ([]NodeDeployment, *http.Response, error) {
 	path := nodeDeploymentsCreateListPath(prj, dc, cls)
 	ret := make([]NodeDeployment, 0)
-	if resp, err := svc.client.resourceList(ctx, path, &ret); err != nil {
-		return nil, err
-	} else if resp.StatusCode != http.StatusOK {
-		return nil, unexpectedResponseError(resp)
-	}
-	return ret, nil
+	resp, err := svc.client.resourceList(ctx, path, &ret)
+	return ret, resp, err
 }
 
 // NodeDeploymentsPatchRequest format of request to patch.
@@ -41,41 +37,31 @@ type NodeDeploymentsPatchRequest struct {
 }
 
 // Patch updates node deployments spec.
-func (svc *NodeDeploymentsService) Patch(ctx context.Context, prj, dc, cls, id string, patch *NodeDeploymentsPatchRequest) (*NodeDeployment, error) {
+func (svc *NodeDeploymentsService) Patch(ctx context.Context, prj, dc, cls, id string, patch *NodeDeploymentsPatchRequest) (*NodeDeployment, *http.Response, error) {
 	path := nodeDeploymentResourcePath(prj, dc, cls, id)
 	ret := new(NodeDeployment)
-	if err := svc.client.resourcePatch(ctx, path, patch, ret); err != nil {
-		return nil, err
-	}
-	return ret, nil
+	resp, err := svc.client.resourcePatch(ctx, path, patch, ret)
+	return ret, resp, err
 }
 
 // Create creates new node deployment.
-func (svc *NodeDeploymentsService) Create(ctx context.Context, prj, dc, cls string, v *NodeDeployment) (*NodeDeployment, error) {
+func (svc *NodeDeploymentsService) Create(ctx context.Context, prj, dc, cls string, v *NodeDeployment) (*NodeDeployment, *http.Response, error) {
 	path := nodeDeploymentsCreateListPath(prj, dc, cls)
 	ret := new(NodeDeployment)
-	if err := svc.client.resourceCreate(ctx, path, v, ret); err != nil {
-		return nil, err
-	}
-	return ret, nil
+	resp, err := svc.client.resourceCreate(ctx, path, v, ret)
+	return ret, resp, err
 }
 
 // Get returns node deployments.
-func (svc *NodeDeploymentsService) Get(ctx context.Context, prj, dc, cls, id string) (*NodeDeployment, error) {
+func (svc *NodeDeploymentsService) Get(ctx context.Context, prj, dc, cls, id string) (*NodeDeployment, *http.Response, error) {
 	path := nodeDeploymentResourcePath(prj, dc, cls, id)
 	ret := new(NodeDeployment)
-	if resp, err := svc.client.resourceGet(ctx, path, ret); err != nil {
-		return nil, err
-	} else if resp.StatusCode == http.StatusNotFound {
-		return nil, nil
-	} else if resp.StatusCode != http.StatusOK {
-		return nil, unexpectedResponseError(resp)
-	}
-	return ret, nil
+	resp, err := svc.client.resourceGet(ctx, path, ret)
+	return ret, resp, err
 }
 
 // Delete deletes node deployments.
-func (svc *NodeDeploymentsService) Delete(ctx context.Context, prj, dc, cls, id string) error {
+func (svc *NodeDeploymentsService) Delete(ctx context.Context, prj, dc, cls, id string) (*http.Response, error) {
 	path := nodeDeploymentResourcePath(prj, dc, cls, id)
 	return svc.client.resourceDelete(ctx, path)
 }
@@ -86,7 +72,7 @@ type UpgradeNodesRequest struct {
 }
 
 // Upgrade upgrades nodes.
-func (svc *NodeDeploymentsService) Upgrade(ctx context.Context, prj, dc, cls string, req *UpgradeNodesRequest) error {
+func (svc *NodeDeploymentsService) Upgrade(ctx context.Context, prj, dc, cls string, req *UpgradeNodesRequest) (*http.Response, error) {
 	path := clusterNodesUpgradePath(prj, dc, cls)
 	return svc.client.resourcePut(ctx, path, req, nil)
 }

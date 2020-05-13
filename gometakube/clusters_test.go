@@ -46,7 +46,7 @@ const (
 		  "version": "1.17.2",
 		  "url": "https://url"
 		}
-	  }	  
+	  }
 	`
 )
 
@@ -89,7 +89,8 @@ func TestClusters_List(t *testing.T) {
 	path := fmt.Sprintf("/api/v1/projects/%s/clusters", prj)
 
 	testResourceList(t, clustersJSON, path, []Cluster{cluster}, func() (interface{}, error) {
-		return client.Clusters.List(ctx, prj)
+		l, _, err := client.Clusters.List(ctx, prj)
+		return l, err
 	})
 }
 
@@ -118,7 +119,7 @@ func TestClusters_Create(t *testing.T) {
 		fmt.Fprint(w, `{"id": "id-cluster"}`)
 	})
 
-	got, err := client.Clusters.Create(ctx, prj, dc, createRequest)
+	got, _, err := client.Clusters.Create(ctx, prj, dc, createRequest)
 	testErrNil(t, err)
 
 	if want := createRequest.Cluster; want.ID != got.ID {
@@ -132,7 +133,8 @@ func TestClusters_Delete(t *testing.T) {
 	cls := "the-cluster"
 	path := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s", prj, dc, cls)
 	testResourceDelete(t, path, func() error {
-		return client.Clusters.Delete(ctx, prj, dc, cls)
+		_, err := client.Clusters.Delete(ctx, prj, dc, cls)
+		return err
 	})
 }
 
@@ -149,7 +151,7 @@ func TestClusters_Get(t *testing.T) {
 		fmt.Fprint(w, clusterJSON)
 	})
 
-	got, err := client.Clusters.Get(ctx, prj, dc, cls)
+	got, _, err := client.Clusters.Get(ctx, prj, dc, cls)
 	testErrNil(t, err)
 	if want := &cluster; !reflect.DeepEqual(want, got) {
 		t.Fatalf("want: %+v, got: %+v", want, got)
@@ -179,7 +181,7 @@ func TestClusters_Patch(t *testing.T) {
 			},
 		},
 	}
-	got, err := client.Clusters.Patch(ctx, prj, dc, cls, patch)
+	got, _, err := client.Clusters.Patch(ctx, prj, dc, cls, patch)
 	testErrNil(t, err)
 	if want := &cluster; !reflect.DeepEqual(want, got) {
 		t.Fatalf("want: %v, got: %v", want, got)
@@ -221,7 +223,7 @@ func TestClusters_Health(t *testing.T) {
 		fmt.Fprint(w, clusterHealthJSON)
 	})
 
-	got, err := client.Clusters.Health(ctx, prj, dc, cls)
+	got, _, err := client.Clusters.Health(ctx, prj, dc, cls)
 	testErrNil(t, err)
 
 	if want := &clusterHealth; !reflect.DeepEqual(want, got) {
@@ -242,7 +244,7 @@ func TestClusters_Upgrades(t *testing.T) {
 		fmt.Fprint(w, `[{ "version": "1.16.8" }, { "version": "1.17.4", "default": true }]`)
 	})
 
-	got, err := client.Clusters.Upgrades(ctx)
+	got, _, err := client.Clusters.Upgrades(ctx)
 	testErrNil(t, err)
 	if !reflect.DeepEqual(upgradesWant, got) {
 		t.Fatalf("want upgrades: %+v, got: %+v", upgradesWant, got)
@@ -261,7 +263,7 @@ func TestClusters_Upgrade(t *testing.T) {
 		fmt.Fprint(w, `[{ "version": "1.16.8" }]`)
 	})
 
-	got, err := client.Clusters.ClusterUpgrades(ctx, prj, dc, id)
+	got, _, err := client.Clusters.ClusterUpgrades(ctx, prj, dc, id)
 	testErrNil(t, err)
 	want := []ClusterUpgrade{{Version: "1.16.8"}}
 	if !reflect.DeepEqual(want, got) {

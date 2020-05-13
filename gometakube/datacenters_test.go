@@ -160,7 +160,8 @@ var datacenter = Datacenter{
 func TestDatacenters_List(t *testing.T) {
 	datacentersJSON := fmt.Sprintf(`[%s]`, datacenterJSON)
 	testResourceList(t, datacentersJSON, "/api/v1/dc", []Datacenter{datacenter}, func() (interface{}, error) {
-		return client.Datacenters.List(ctx)
+		l, _, err := client.Datacenters.List(ctx)
+		return l, err
 	})
 }
 
@@ -173,7 +174,7 @@ func TestDatacenters_Get(t *testing.T) {
 		fmt.Fprint(w, datacenterJSON)
 	})
 
-	got, err := client.Datacenters.Get(ctx, datacenter.Metadata.Name)
+	got, _, err := client.Datacenters.Get(ctx, datacenter.Metadata.Name)
 	testErrNil(t, err)
 
 	if !reflect.DeepEqual(&datacenter, got) {

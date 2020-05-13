@@ -75,7 +75,8 @@ func TestProjects_List(t *testing.T) {
 	path := "/api/v1/projects"
 	want := []Project{project}
 	testResourceList(t, projectsJSON, path, want, func() (interface{}, error) {
-		return client.Projects.List(ctx)
+		l, _, e := client.Projects.List(ctx)
+		return l, e
 	})
 }
 
@@ -104,7 +105,7 @@ func TestProjects_Create(t *testing.T) {
 		fmt.Fprint(w, projectJSON)
 	})
 
-	got, err := client.Projects.Create(ctx, createRequest)
+	got, _, err := client.Projects.Create(ctx, createRequest)
 	testErrNil(t, err)
 
 	if want := &project; !reflect.DeepEqual(want, got) {
@@ -121,7 +122,7 @@ func TestProject_Get(t *testing.T) {
 		fmt.Fprint(w, projectJSON)
 	})
 
-	got, err := client.Projects.Get(ctx, project.ID)
+	got, _, err := client.Projects.Get(ctx, project.ID)
 	testErrNil(t, err)
 
 	if want := &project; !reflect.DeepEqual(want, got) {
@@ -132,7 +133,8 @@ func TestProject_Get(t *testing.T) {
 func TestProject_Delete(t *testing.T) {
 	path := "/api/v1/projects/" + project.ID
 	testResourceDelete(t, path, func() error {
-		return client.Projects.Delete(ctx, project.ID)
+		_, e := client.Projects.Delete(ctx, project.ID)
+		return e
 	})
 }
 
@@ -158,6 +160,6 @@ func TestProject_Update(t *testing.T) {
 		fmt.Fprint(w, projectJSON)
 	})
 
-	_, err := client.Projects.Update(ctx, project.ID, &update)
+	_, _, err := client.Projects.Update(ctx, project.ID, &update)
 	testErrNil(t, err)
 }

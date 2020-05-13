@@ -46,7 +46,7 @@ func (svc *SSHKeysService) List(ctx context.Context, prj string) ([]SSHKey, erro
 	ret := make([]SSHKey, 0)
 	if resp, err := svc.client.resourceList(ctx, projectSSHKeysPath(prj), &ret); err != nil {
 		return nil, err
-	} else if resp.StatusCode != http.StatusOK {
+	} else if resp != nil && resp.StatusCode != http.StatusOK {
 		return nil, unexpectedResponseError(resp)
 	}
 	return ret, nil
@@ -64,36 +64,32 @@ func (svc *SSHKeysService) ListAssigned(ctx context.Context, prj, dc, cls string
 }
 
 // Create adds sshkey to a project.
-func (svc *SSHKeysService) Create(ctx context.Context, prj string, params *SSHKey) (*SSHKey, error) {
+func (svc *SSHKeysService) Create(ctx context.Context, prj string, params *SSHKey) (*SSHKey, *http.Response, error) {
 	ret := new(SSHKey)
-	return ret, svc.client.resourceCreate(ctx, projectSSHKeysPath(prj), params, ret)
+	resp, err := svc.client.resourceCreate(ctx, projectSSHKeysPath(prj), params, ret)
+	return ret, resp, err
 }
 
 // Delete deletes a sshkey from a project.
-func (svc *SSHKeysService) Delete(ctx context.Context, prj, id string) error {
+func (svc *SSHKeysService) Delete(ctx context.Context, prj, id string) (*http.Response, error) {
 	path := deleteSSHKeyPath(prj, id)
 	return svc.client.resourceDelete(ctx, path)
 }
 
 // AssignToCluster assign ssh key to a cluster.
-func (svc SSHKeysService) AssignToCluster(ctx context.Context, prj, dc, cls, id string) (*SSHKey, error) {
+func (svc SSHKeysService) AssignToCluster(ctx context.Context, prj, dc, cls, id string) (*SSHKey, *http.Response, error) {
 	ret := new(SSHKey)
 	path := clusterSSHKeyPath(prj, dc, cls, id)
 	req, err := svc.client.NewRequest(http.MethodPut, path, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if resp, err := svc.client.Do(ctx, req, ret); err != nil {
-		return nil, err
-	} else if resp.StatusCode != http.StatusCreated {
-		return nil, unexpectedResponseError(resp)
-	} else {
-		return ret, nil
-	}
+	resp, err := svc.client.Do(ctx, req, ret)
+	return ret, resp, err
 }
 
-// RemoveFromCluster unassigns sshkey from a cluster
-func (svc *SSHKeysService) RemoveFromCluster(ctx context.Context, prj, dc, cls, id string) error {
+// RemoveFromCluster unassigns sshkey from a cluster.
+func (svc *SSHKeysService) RemoveFromCluster(ctx context.Context, prj, dc, cls, id string) (*http.Response, error) {
 	path := clusterSSHKeyPath(prj, dc, cls, id)
 	return svc.client.resourceDelete(ctx, path)
 }

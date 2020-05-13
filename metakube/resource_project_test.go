@@ -3,6 +3,7 @@ package metakube
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"reflect"
 	"testing"
 
@@ -58,9 +59,12 @@ func testAccCheckMetakubeProjectDestroy(s *terraform.State) error {
 			continue
 		}
 
-		obj, err := client.Projects.Get(context.Background(), rs.Primary.ID)
-		if err == nil && obj == nil {
+		obj, resp, err := client.Projects.Get(context.Background(), rs.Primary.ID)
+		if resp != nil && resp.StatusCode == http.StatusNotFound {
 			return nil
+		}
+		if err != nil {
+			return err
 		}
 
 		if obj.Status != "Terminating" {
@@ -79,7 +83,7 @@ func testAccCheckProjectResourceExist(r, name string, labels map[string]string) 
 
 		client := testAccProvider.Meta().(*gometakube.Client)
 
-		if obj, err := client.Projects.Get(context.Background(), rs.Primary.ID); err != nil {
+		if obj, _, err := client.Projects.Get(context.Background(), rs.Primary.ID); err != nil {
 			return fmt.Errorf("Couldnt retrieve project: %v", err)
 		} else if want, got := name, obj.Name; want != got {
 			return fmt.Errorf("Unexpected project name, want: %s, got: %s", want, got)

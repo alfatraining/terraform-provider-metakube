@@ -3,6 +3,7 @@ package metakube
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"testing"
 
@@ -200,9 +201,12 @@ func testAccCheckMetakubeClusterDestroy(s *terraform.State) error {
 		}
 		projectID := rs.Primary.Attributes["project_id"]
 		dc := rs.Primary.Attributes["dc"]
-		obj, err := client.Clusters.Get(context.Background(), projectID, dc, rs.Primary.ID)
-		if err == nil && obj == nil {
+		obj, resp, err := client.Clusters.Get(context.Background(), projectID, dc, rs.Primary.ID)
+		if resp != nil && resp.StatusCode == http.StatusNotFound {
 			return nil
+		}
+		if err != nil {
+			return err
 		}
 
 		if obj.DeletionTimestamp == nil {
@@ -223,11 +227,11 @@ func testAccCheckClusterResourceCreated(r string) resource.TestCheckFunc {
 		client := testAccProvider.Meta().(*gometakube.Client)
 		projectID := rs.Primary.Attributes["project_id"]
 		dcName := rs.Primary.Attributes["dc"]
-		dc, err := client.Datacenters.Get(context.Background(), dcName)
+		dc, _, err := client.Datacenters.Get(context.Background(), dcName)
 		if err != nil {
 			return fmt.Errorf("failed to get datacenter details: %v", err)
 		}
-		obj, err := client.Clusters.Get(context.Background(), projectID, dc.Spec.Seed, rs.Primary.ID)
+		obj, _, err := client.Clusters.Get(context.Background(), projectID, dc.Spec.Seed, rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("failed to get cluster details: %v", err)
 		}
@@ -248,12 +252,12 @@ func testAccCheckClustersNodeDeployment(r, name, flavor, image string, floatingI
 		client := testAccProvider.Meta().(*gometakube.Client)
 		projectID := rs.Primary.Attributes["project_id"]
 		dcName := rs.Primary.Attributes["dc"]
-		dc, err := client.Datacenters.Get(context.Background(), dcName)
+		dc, _, err := client.Datacenters.Get(context.Background(), dcName)
 		if err != nil {
 			return fmt.Errorf("failed to get datacenter details: %v", err)
 		}
 		var nodedepl *gometakube.NodeDeployment
-		items, err := client.NodeDeployments.List(context.Background(), projectID, dc.Spec.Seed, rs.Primary.ID)
+		items, _, err := client.NodeDeployments.List(context.Background(), projectID, dc.Spec.Seed, rs.Primary.ID)
 		for _, item := range items {
 			if item.Name == name {
 				nodedepl = &item

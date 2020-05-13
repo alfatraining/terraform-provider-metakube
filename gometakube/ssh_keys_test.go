@@ -72,7 +72,7 @@ func TestSHHKeys_Create(t *testing.T) {
 		fmt.Fprint(w, sshkeyJSON)
 	})
 
-	got, err := client.SSHKeys.Create(ctx, prj, createReq)
+	got, _, err := client.SSHKeys.Create(ctx, prj, createReq)
 	testErrNil(t, err)
 	if !reflect.DeepEqual(got, &sshkey) {
 		t.Fatalf("want: %+v, got: %+v", sshkey, got)
@@ -84,7 +84,8 @@ func TestSSHKeys_Delete(t *testing.T) {
 	id := "id"
 	path := fmt.Sprintf("/api/v1/projects/%s/sshkeys/%s", prj, id)
 	testResourceDelete(t, path, func() error {
-		return client.SSHKeys.Delete(ctx, prj, id)
+		_, e := client.SSHKeys.Delete(ctx, prj, id)
+		return e
 	})
 }
 
@@ -103,7 +104,7 @@ func TestSSHKeys_AssingToCluster(t *testing.T) {
 		fmt.Fprint(w, sshkeyJSON)
 	})
 
-	got, err := client.SSHKeys.AssignToCluster(ctx, prj, dc, cls, id)
+	got, _, err := client.SSHKeys.AssignToCluster(ctx, prj, dc, cls, id)
 	testErrNil(t, err)
 
 	if !reflect.DeepEqual(&sshkey, got) {
@@ -118,6 +119,7 @@ func TestSSHKeys_RemoveFromCluster(t *testing.T) {
 	id := "mykeyid"
 	path := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/sshkeys/%s", prj, dc, cls, id)
 	testResourceDelete(t, path, func() error {
-		return client.SSHKeys.RemoveFromCluster(ctx, prj, dc, cls, id)
+		_, e := client.SSHKeys.RemoveFromCluster(ctx, prj, dc, cls, id)
+		return e
 	})
 }

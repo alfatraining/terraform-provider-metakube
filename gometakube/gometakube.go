@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"time"
@@ -31,6 +33,50 @@ type Client struct {
 	NodeDeployments *NodeDeploymentsService
 	Openstack       *OpenstackService
 	SSHKeys         *SSHKeysService
+}
+
+// An ErrorMessage details the error caused by an API request.
+type ErrorMessage struct {
+	Code    int      `json:"code"`
+	Details []string `json:"details"`
+	Message string   `json:"message"`
+}
+
+// An ErrorResponse reports the error caused by an API request.
+type ErrorResponse struct {
+	// HTTP response of the error request.
+	Response *http.Response `json:"-"`
+
+	// API response message explaining the error.
+	ErrorMessage *ErrorMessage `json:"error"`
+
+	// Raw message that failed to be parsed into ErrorMessage.
+	RawErrorMessage string `json:"-"`
+}
+
+func (r *ErrorResponse) Error() string {
+	msg := r.RawErrorMessage
+	if r.ErrorMessage != nil {
+		msg = fmt.Sprintf("%+v", r.ErrorMessage)
+	}
+	return fmt.Sprintf("%v %v: %d %s",
+		r.Response.Request.Method, r.Response.Request.URL, r.Response.StatusCode, msg)
+}
+
+func checkResponse(r *http.Response) error {
+	if c := r.StatusCode; c >= 200 && c <= 299 {
+		return nil
+	}
+
+	errorResponse := &ErrorResponse{Response: r}
+	data, err := ioutil.ReadAll(r.Body)
+	if err == nil && len(data) > 0 {
+		err := json.Unmarshal(data, errorResponse)
+		if err != nil {
+			errorResponse.RawErrorMessage = string(data)
+		}
+	}
+	return errorResponse
 }
 
 // CreateOpt represent api clients construction option.
@@ -107,16 +153,28 @@ func (c *Client) Do(ctx context.Context, req *http.Request, out interface{}) (*h
 	req = req.WithContext(ctx)
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	if c := resp.StatusCode; c < 200 || c > 299 {
+
+	defer func() {
+		if verr := resp.Body.Close(); err == nil {
+			err = verr
+		}
+	}()
+
+	err = checkResponse(resp)
+	if err != nil {
 		return resp, err
 	}
 
 	if out != nil {
-		return resp, json.NewDecoder(resp.Body).Decode(out)
+		err = json.NewDecoder(resp.Body).Decode(out)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return resp, nil
+
+	return resp, err
 }
 
 func (c *Client) resourceList(ctx context.Context, path string, ret interface{}) (*http.Response, error) {
@@ -127,28 +185,20 @@ func (c *Client) resourceList(ctx context.Context, path string, ret interface{})
 	return c.Do(ctx, req, ret)
 }
 
-func (c *Client) resourceDelete(ctx context.Context, path string) error {
-	if req, err := c.NewRequest(http.MethodDelete, path, nil); err != nil {
-		return err
-	} else if resp, err := c.Do(ctx, req, nil); err != nil {
-		return err
-	} else if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
-		return unexpectedResponseError(resp)
-	} else {
-		return nil
+func (c *Client) resourceDelete(ctx context.Context, path string) (*http.Response, error) {
+	req, err := c.NewRequest(http.MethodDelete, path, nil)
+	if err != nil {
+		return nil, err
 	}
+	return c.Do(ctx, req, nil)
 }
 
-func (c *Client) resourceCreate(ctx context.Context, path string, v, ret interface{}) error {
-	if req, err := c.NewRequest(http.MethodPost, path, v); err != nil {
-		return err
-	} else if resp, err := c.Do(ctx, req, ret); err != nil {
-		return err
-	} else if resp.StatusCode != http.StatusCreated {
-		return unexpectedResponseError(resp)
-	} else {
-		return nil
+func (c *Client) resourceCreate(ctx context.Context, path string, v, ret interface{}) (*http.Response, error) {
+	req, err := c.NewRequest(http.MethodPost, path, v)
+	if err != nil {
+		return nil, err
 	}
+	return c.Do(ctx, req, ret)
 }
 
 func (c *Client) resourceGet(ctx context.Context, path string, ret interface{}) (*http.Response, error) {
@@ -159,42 +209,34 @@ func (c *Client) resourceGet(ctx context.Context, path string, ret interface{}) 
 	return c.Do(ctx, req, &ret)
 }
 
-func (c *Client) resourcePut(ctx context.Context, path string, put, ret interface{}) error {
+func (c *Client) resourcePut(ctx context.Context, path string, put, ret interface{}) (*http.Response, error) {
 	req, err := c.NewRequest(http.MethodPut, path, put)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if resp, err := c.Do(ctx, req, ret); err != nil {
-		return err
-	} else if resp.StatusCode != http.StatusOK {
-		return unexpectedResponseError(resp)
-	} else {
-		return nil
-	}
+	return c.Do(ctx, req, ret)
 }
 
-func (c *Client) resourcePatch(ctx context.Context, path string, patch, ret interface{}) error {
+func (c *Client) resourcePatch(ctx context.Context, path string, patch, ret interface{}) (*http.Response, error) {
 	req, err := c.NewRequest(http.MethodPatch, path, patch)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	tries := uint(0)
+	// TODO(furkhat): move retries out.
 	ticker := time.NewTicker(c.retryOnConflictPeriod)
 	defer ticker.Stop()
-	for {
+	resp, err := c.Do(ctx, req, &ret)
+	for i := uint(0); i < c.retriesOnConflict; i++ {
 		select {
 		case <-ticker.C:
-			if resp, err := c.Do(ctx, req, &ret); err != nil {
-				return err
-			} else if resp.StatusCode == http.StatusConflict && tries < c.retriesOnConflict {
-				tries++
-			} else if resp.StatusCode != http.StatusOK {
-				return unexpectedResponseError(resp)
-			} else {
-				return nil
+			if resp != nil && (resp.StatusCode < 400 || resp.StatusCode > 499) {
+				break
 			}
+			// TODO(furkhat): add warning log.
+			resp, err = c.Do(ctx, req, &ret)
 		case <-ctx.Done():
-			return ctx.Err()
+			return nil, ctx.Err()
 		}
 	}
+	return resp, err
 }

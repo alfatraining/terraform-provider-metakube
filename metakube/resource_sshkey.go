@@ -44,14 +44,17 @@ func resourceSSHKey() *schema.Resource {
 
 func resourceSSHKeyCreate(d *schema.ResourceData, m interface{}) error {
 	client := m.(*gometakube.Client)
-	v, err := client.SSHKeys.Create(context.Background(), d.Get("project_id").(string), &gometakube.SSHKey{
+	v, _, err := client.SSHKeys.Create(context.Background(), d.Get("project_id").(string), &gometakube.SSHKey{
 		Name: d.Get("name").(string),
 		Spec: gometakube.SSHKeySpec{
 			PublicKey: d.Get("public_key").(string),
 		},
 	})
+	if err != nil {
+		return err
+	}
 	d.SetId(v.ID)
-	return err
+	return nil
 }
 
 func resourceSSHKeyRead(d *schema.ResourceData, m interface{}) error {
@@ -78,5 +81,6 @@ func resourceSSHKeyRead(d *schema.ResourceData, m interface{}) error {
 
 func resourceSSHKeyDelete(d *schema.ResourceData, m interface{}) error {
 	client := m.(*gometakube.Client)
-	return client.SSHKeys.Delete(context.Background(), d.Get("project_id").(string), d.Id())
+	_, err := client.SSHKeys.Delete(context.Background(), d.Get("project_id").(string), d.Id())
+	return err
 }

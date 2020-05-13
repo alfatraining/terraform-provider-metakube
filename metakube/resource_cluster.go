@@ -3,11 +3,13 @@ package metakube
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	"github.com/pkg/errors"
 	"gitlab.com/furkhat/terraform-provider-metakube/gometakube"
 )
 
@@ -148,7 +150,7 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 		return err
 	} else if err := checkClusterNodedeplImage(client, dc, d); err != nil {
 		return err
-	} else if project, err := client.Projects.Get(context.Background(), d.Get("project_id").(string)); err != nil {
+	} else if project, _, err := client.Projects.Get(context.Background(), d.Get("project_id").(string)); err != nil {
 		return err
 	} else if err := checkClusterDoesNotRedefineProjectLabels(project, d); err != nil {
 		return err
@@ -204,9 +206,9 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 			},
 		}
 		prj := d.Get("project_id").(string)
-		obj, err := client.Clusters.Create(context.Background(), prj, dc.Spec.Seed, create)
+		obj, _, err := client.Clusters.Create(context.Background(), prj, dc.Spec.Seed, create)
 		if err != nil {
-			return fmt.Errorf("could not create cluster: %v", err)
+			return errors.Wrapf(err, "create cluster")
 		}
 		d.SetId(obj.ID)
 		if err := manageSSHKeysInCluster(client, nil, d.Get("sshkeys"), prj, dc.Spec.Seed, d.Id()); err != nil {
@@ -230,7 +232,7 @@ func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
 		return nil
 	} else if nodeDeployment, err := getClusterNodeDeployment(client, projectID, dc.Spec.Seed, id, d.Get("nodedepl.0.name").(string)); err != nil {
 		return err
-	} else if project, err := client.Projects.Get(context.Background(), projectID); err != nil {
+	} else if project, _, err := client.Projects.Get(context.Background(), projectID); err != nil {
 		return err
 	} else if sshkeys, err := client.SSHKeys.ListAssigned(context.Background(), projectID, dc.Spec.Seed, id); err != nil {
 		return fmt.Errorf("could not list sshkeys assinged to cluster: %v", err)
@@ -275,7 +277,7 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 			// Cluster was deleted
 			d.SetId("")
 			return nil
-		} else if project, err := client.Projects.Get(context.Background(), d.Get("project_id").(string)); err != nil {
+		} else if project, _, err := client.Projects.Get(context.Background(), d.Get("project_id").(string)); err != nil {
 			return err
 		} else if err := checkClusterDoesNotRedefineProjectLabels(project, d); err != nil {
 			return err
@@ -289,7 +291,7 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 					},
 				},
 			}
-			_, err = client.Clusters.Patch(context.Background(), projectID, dc.Spec.Seed, d.Id(), patch)
+			_, _, err = client.Clusters.Patch(context.Background(), projectID, dc.Spec.Seed, d.Id(), patch)
 			if err != nil {
 				return fmt.Errorf("could not patch cluster (is cluster provisioning compete?). error: %v", err)
 			}
@@ -313,7 +315,7 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 			patch.Spec.Template.Cloud.Openstack.Flavor = d.Get("nodedepl.0.flavor").(string)
 			patch.Spec.Template.Cloud.Openstack.Image = d.Get("nodedepl.0.image").(string)
 			patch.Spec.Template.Cloud.Openstack.UseFloatingIP = d.Get("nodedepl.0.use_floating_ip").(bool)
-			_, err = client.NodeDeployments.Patch(context.Background(), projectID, dc.Spec.Seed, d.Id(), nodedepl.ID, patch)
+			_, _, err = client.NodeDeployments.Patch(context.Background(), projectID, dc.Spec.Seed, d.Id(), nodedepl.ID, patch)
 			if err != nil {
 				return fmt.Errorf("could not patch node deployment: %v", err)
 			}
@@ -322,7 +324,7 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 	}
 	if d.HasChange("version") {
 		versionPrefix := d.Get("version").(string)
-		if cluster, err := client.Clusters.Get(context.Background(), projectID, dc.Spec.Seed, d.Id()); err != nil {
+		if cluster, _, err := client.Clusters.Get(context.Background(), projectID, dc.Spec.Seed, d.Id()); err != nil {
 			return err
 		} else if clusterVersionsHasPrefix(cluster.Spec.Version, versionPrefix) {
 			return nil
@@ -347,7 +349,7 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 						Version: version,
 					},
 				}
-				cluster, err = client.Clusters.Patch(context.Background(), projectID, dc.Spec.Seed, d.Id(), patch)
+				cluster, _, err = client.Clusters.Patch(context.Background(), projectID, dc.Spec.Seed, d.Id(), patch)
 				if err != nil {
 					return fmt.Errorf("could not patch cluster (is cluster provisioning compete?). error: %v", err)
 				}
@@ -358,7 +360,7 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 					break
 				}
 			}
-			err = client.NodeDeployments.Upgrade(context.Background(), projectID, dc.Spec.Seed, d.Id(), &gometakube.UpgradeNodesRequest{
+			_, err = client.NodeDeployments.Upgrade(context.Background(), projectID, dc.Spec.Seed, d.Id(), &gometakube.UpgradeNodesRequest{
 				Version: cluster.Spec.Version,
 			})
 			if err != nil {
@@ -381,7 +383,7 @@ func resourceClusterDelete(d *schema.ResourceData, meta interface{}) error {
 	project := d.Get("project_id").(string)
 	if dc, err := getClusterDatacenter(client, d.Get("dc").(string)); err != nil {
 		return err
-	} else if err := client.Clusters.Delete(context.Background(), project, dc.Spec.Seed, id); err != nil {
+	} else if _, err := client.Clusters.Delete(context.Background(), project, dc.Spec.Seed, id); err != nil {
 		return fmt.Errorf("could not delete cluster: %v", err)
 	} else {
 		return waitForClusterDelete(client, project, dc.Spec.Seed, id)
@@ -416,12 +418,12 @@ func manageSSHKeysInCluster(client *gometakube.Client, old, new interface{}, prj
 			if id == "" {
 				return fmt.Errorf("no ssh key with name `%s` found the the project", v)
 			}
-			_, err = client.SSHKeys.AssignToCluster(context.Background(), prj, dc, cls, id)
+			_, _, err = client.SSHKeys.AssignToCluster(context.Background(), prj, dc, cls, id)
 			if err != nil {
 				return fmt.Errorf("could not assign sshkey to cluster: %v", err)
 			}
 		} else if id != "" {
-			err = client.SSHKeys.RemoveFromCluster(context.Background(), prj, dc, cls, id)
+			_, err = client.SSHKeys.RemoveFromCluster(context.Background(), prj, dc, cls, id)
 			if err != nil {
 				return fmt.Errorf("could not unassign sshkey from cluster: %v", err)
 			}
@@ -436,12 +438,12 @@ func waitForClusterDelete(client *gometakube.Client, prj, dc, id string) error {
 	timeout := 10 * 60
 	n := 0
 	for range ticker.C {
-		v, err := client.Clusters.Get(context.Background(), prj, dc, id)
+		_, resp, err := client.Clusters.Get(context.Background(), prj, dc, id)
 		if err != nil {
-			return fmt.Errorf("couldn't check cluster delete: %v", err)
-		}
-		if v == nil {
-			return nil
+			if resp != nil && resp.StatusCode == http.StatusNotFound {
+				return nil
+			}
+			return errors.Wrapf(err, "GET cluster")
 		}
 		if n > timeout {
 			return fmt.Errorf("Timeout waiting to create delete")
@@ -464,7 +466,7 @@ func waitForClusterHealthy(client *gometakube.Client, prj, dc, id string) error 
 	timeout := 10 * 60
 	n := 0
 	for range ticker.C {
-		h, _ := client.Clusters.Health(context.Background(), prj, dc, id)
+		h, _, _ := client.Clusters.Health(context.Background(), prj, dc, id)
 		if h != nil && h.Healthy() {
 			return nil
 		}
@@ -496,7 +498,7 @@ func waitNodeDeploymentCreate(client *gometakube.Client, prj, dc, cls, name stri
 func checkClusterNodedeplImage(client *gometakube.Client, dc *gometakube.Datacenter, d *schema.ResourceData) error {
 	providerUsername := d.Get("provider_username").(string)
 	providerPassword := d.Get("provider_password").(string)
-	images, err := client.Openstack.Images(context.Background(), dc.Metadata.Name, "Default", providerUsername, providerPassword)
+	images, _, err := client.Openstack.Images(context.Background(), dc.Metadata.Name, "Default", providerUsername, providerPassword)
 	if err != nil {
 		return fmt.Errorf("could not get list of images: %v", err)
 	}
@@ -520,7 +522,7 @@ func checkClusterNodedeplImage(client *gometakube.Client, dc *gometakube.Datacen
 func checkClusterTenantValid(client *gometakube.Client, dc *gometakube.Datacenter, d *schema.ResourceData) error {
 	providerUsername := d.Get("provider_username").(string)
 	providerPassword := d.Get("provider_password").(string)
-	tenants, err := client.Openstack.Tenants(context.Background(), dc.Metadata.Name, "Default", providerUsername, providerPassword)
+	tenants, _, err := client.Openstack.Tenants(context.Background(), dc.Metadata.Name, "Default", providerUsername, providerPassword)
 	if err != nil {
 		return fmt.Errorf("could not get list of tenants: %v", err)
 	}
@@ -551,7 +553,7 @@ func checkClusterDoesNotRedefineProjectLabels(project *gometakube.Project, d *sc
 }
 
 func getClusterVersionToUse(c *gometakube.Client, prefix string) (string, error) {
-	versions, err := c.Clusters.Upgrades(context.Background())
+	versions, _, err := c.Clusters.Upgrades(context.Background())
 	if err != nil {
 		return "", fmt.Errorf("could not get available cluster versions: %v", err)
 	}
@@ -559,7 +561,7 @@ func getClusterVersionToUse(c *gometakube.Client, prefix string) (string, error)
 }
 
 func getClusterVersionToUpgradeInto(c *gometakube.Client, prj, dc, id string) (string, error) {
-	versions, err := c.Clusters.ClusterUpgrades(context.Background(), prj, dc, id)
+	versions, _, err := c.Clusters.ClusterUpgrades(context.Background(), prj, dc, id)
 	if err != nil {
 		return "", err
 	}
@@ -607,7 +609,7 @@ func checkClusterAutoscaleValid(d *schema.ResourceData) (int, int, error) {
 }
 
 func getClusterDatacenter(c *gometakube.Client, n string) (*gometakube.Datacenter, error) {
-	dc, err := c.Datacenters.Get(context.Background(), n)
+	dc, _, err := c.Datacenters.Get(context.Background(), n)
 	if err != nil {
 		return nil, fmt.Errorf("could not get details on datacenter: %v", err)
 	}
@@ -615,7 +617,7 @@ func getClusterDatacenter(c *gometakube.Client, n string) (*gometakube.Datacente
 }
 
 func getCluster(c *gometakube.Client, prj, dc, id string) (*gometakube.Cluster, error) {
-	obj, err := c.Clusters.Get(context.Background(), prj, dc, id)
+	obj, _, err := c.Clusters.Get(context.Background(), prj, dc, id)
 	if err != nil {
 		return nil, fmt.Errorf("could not get cluster details: %v", err)
 	}
@@ -627,7 +629,7 @@ func clusterLabelsMap(d *schema.ResourceData) (ret map[string]string) {
 }
 
 func getClusterNodeDeployment(c *gometakube.Client, prj, dc, cls, name string) (*gometakube.NodeDeployment, error) {
-	items, err := c.NodeDeployments.List(context.Background(), prj, dc, cls)
+	items, _, err := c.NodeDeployments.List(context.Background(), prj, dc, cls)
 	if err != nil {
 		return nil, fmt.Errorf("could not get cluster node deployments: %v", err)
 	}

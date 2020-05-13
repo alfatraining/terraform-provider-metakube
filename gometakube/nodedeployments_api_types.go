@@ -34,7 +34,7 @@ type NodeDeploymentSpecTemplateCloudOpenstack struct {
 	Image         string            `json:"image"`
 	Tags          map[string]string `json:"tags"`
 	UseFloatingIP bool              `json:"useFloatingIP"`
-	// TODO: what is format for DistSize?
+	// TODO(furkhat): DistSize (what are the fields).
 }
 
 type NodeDeploymentSpecTemplateOS struct {
