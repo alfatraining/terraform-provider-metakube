@@ -59,7 +59,7 @@ func resourceSSHKeyCreate(d *schema.ResourceData, m interface{}) error {
 
 func resourceSSHKeyRead(d *schema.ResourceData, m interface{}) error {
 	client := m.(*gometakube.Client)
-	sshkeys, err := client.SSHKeys.List(context.Background(), d.Get("project_id").(string))
+	sshkeys, _, err := client.SSHKeys.List(context.Background(), d.Get("project_id").(string))
 	if err != nil {
 		return fmt.Errorf("could not get projects sshkeys: %v", err)
 	}

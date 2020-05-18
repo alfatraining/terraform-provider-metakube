@@ -36,7 +36,8 @@ func TestSHHKeys_List(t *testing.T) {
 	prj := "project"
 	path := fmt.Sprintf("/api/v1/projects/%s/sshkeys", prj)
 	testResourceList(t, listJSON, path, want, func() (interface{}, error) {
-		return client.SSHKeys.List(ctx, prj)
+		l, _, e := client.SSHKeys.List(ctx, prj)
+		return l, e
 	})
 }
 
@@ -48,7 +49,8 @@ func TestSSHKeys_ListInCluster(t *testing.T) {
 	cls := "cluster"
 	path := fmt.Sprintf("/api/v1/projects/%s/dc/%s/clusters/%s/sshkeys", prj, dc, cls)
 	testResourceList(t, listJSON, path, want, func() (interface{}, error) {
-		return client.SSHKeys.ListAssigned(ctx, prj, dc, cls)
+		l, _, e := client.SSHKeys.ListAssigned(ctx, prj, dc, cls)
+		return l, e
 	})
 }
 

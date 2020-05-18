@@ -234,7 +234,7 @@ func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
 		return err
 	} else if project, _, err := client.Projects.Get(context.Background(), projectID); err != nil {
 		return err
-	} else if sshkeys, err := client.SSHKeys.ListAssigned(context.Background(), projectID, dc.Spec.Seed, id); err != nil {
+	} else if sshkeys, _, err := client.SSHKeys.ListAssigned(context.Background(), projectID, dc.Spec.Seed, id); err != nil {
 		return fmt.Errorf("could not list sshkeys assinged to cluster: %v", err)
 	} else {
 		d.Set("name", obj.Name)
@@ -391,7 +391,7 @@ func resourceClusterDelete(d *schema.ResourceData, meta interface{}) error {
 }
 
 func manageSSHKeysInCluster(client *gometakube.Client, old, new interface{}, prj, dc, cls string) error {
-	allKeys, err := client.SSHKeys.List(context.Background(), prj)
+	allKeys, _, err := client.SSHKeys.List(context.Background(), prj)
 	if err != nil {
 		return fmt.Errorf("could not get list of available sshkeys to assign: %v", err)
 	}

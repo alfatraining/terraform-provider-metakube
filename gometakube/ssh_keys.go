@@ -42,25 +42,17 @@ func clusterSSHKeyPath(prj, dc, cls, id string) string {
 }
 
 // List returns list of sshkeys in a project.
-func (svc *SSHKeysService) List(ctx context.Context, prj string) ([]SSHKey, error) {
+func (svc *SSHKeysService) List(ctx context.Context, prj string) ([]SSHKey, *http.Response, error) {
 	ret := make([]SSHKey, 0)
-	if resp, err := svc.client.resourceList(ctx, projectSSHKeysPath(prj), &ret); err != nil {
-		return nil, err
-	} else if resp != nil && resp.StatusCode != http.StatusOK {
-		return nil, unexpectedResponseError(resp)
-	}
-	return ret, nil
+	resp, err := svc.client.resourceList(ctx, projectSSHKeysPath(prj), &ret)
+	return ret, resp, err
 }
 
 // ListAssigned returns list of sshkeys assigned to a cluster.
-func (svc *SSHKeysService) ListAssigned(ctx context.Context, prj, dc, cls string) ([]SSHKey, error) {
+func (svc *SSHKeysService) ListAssigned(ctx context.Context, prj, dc, cls string) ([]SSHKey, *http.Response, error) {
 	ret := make([]SSHKey, 0)
-	if resp, err := svc.client.resourceList(ctx, clusterSSHKeysPath(prj, dc, cls), &ret); err != nil {
-		return nil, err
-	} else if resp.StatusCode != http.StatusOK {
-		return nil, unexpectedResponseError(resp)
-	}
-	return ret, nil
+	resp, err := svc.client.resourceList(ctx, clusterSSHKeysPath(prj, dc, cls), &ret)
+	return ret, resp, err
 }
 
 // Create adds sshkey to a project.
