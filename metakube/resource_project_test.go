@@ -2,13 +2,13 @@ package metakube
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"reflect"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"github.com/pkg/errors"
 	"gitlab.com/furkhat/terraform-provider-metakube/gometakube"
 )
 
@@ -68,7 +68,7 @@ func testAccCheckMetakubeProjectDestroy(s *terraform.State) error {
 		}
 
 		if obj.Status != "Terminating" {
-			return fmt.Errorf("found not deleted project in `%s` status", obj.Status)
+			return errors.Errorf("found not deleted project in `%s` status", obj.Status)
 		}
 	}
 	return nil
@@ -78,17 +78,17 @@ func testAccCheckProjectResourceExist(r, name string, labels map[string]string) 
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[r]
 		if !ok {
-			return fmt.Errorf("Not found: %s", r)
+			return errors.Errorf("not found %s", r)
 		}
 
 		client := testAccProvider.Meta().(*gometakube.Client)
 
 		if obj, _, err := client.Projects.Get(context.Background(), rs.Primary.ID); err != nil {
-			return fmt.Errorf("Couldnt retrieve project: %v", err)
+			return errors.Wrap(err, "get project")
 		} else if want, got := name, obj.Name; want != got {
-			return fmt.Errorf("Unexpected project name, want: %s, got: %s", want, got)
+			return errors.Errorf("want Name=%v, got %v", want, got)
 		} else if want, got := labels, obj.Labels; !reflect.DeepEqual(want, got) {
-			return fmt.Errorf("Unexpected project labels, want: %v, got: %v", want, got)
+			return errors.Errorf("want Labels=%v, got %v", want, got)
 		}
 		return nil
 	}

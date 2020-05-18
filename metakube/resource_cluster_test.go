@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"github.com/pkg/errors"
 	"gitlab.com/furkhat/terraform-provider-metakube/gometakube"
 )
 
@@ -210,7 +211,7 @@ func testAccCheckMetakubeClusterDestroy(s *terraform.State) error {
 		}
 
 		if obj.DeletionTimestamp == nil {
-			return fmt.Errorf("found not deleted cluster, project: %s, dc: %s, id: %s",
+			return errors.Errorf("found not deleted cluster, project: %s, dc: %s, id: %s",
 				projectID, dc, rs.Primary.ID)
 		}
 	}
@@ -221,7 +222,7 @@ func testAccCheckClusterResourceCreated(r string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[r]
 		if !ok {
-			return fmt.Errorf("Not found: %s", r)
+			return errors.Errorf("not found: %s", r)
 		}
 
 		client := testAccProvider.Meta().(*gometakube.Client)
@@ -229,14 +230,14 @@ func testAccCheckClusterResourceCreated(r string) resource.TestCheckFunc {
 		dcName := rs.Primary.Attributes["dc"]
 		dc, _, err := client.Datacenters.Get(context.Background(), dcName)
 		if err != nil {
-			return fmt.Errorf("failed to get datacenter details: %v", err)
+			return errors.Wrapf(err, "get datacenters")
 		}
 		obj, _, err := client.Clusters.Get(context.Background(), projectID, dc.Spec.Seed, rs.Primary.ID)
 		if err != nil {
-			return fmt.Errorf("failed to get cluster details: %v", err)
+			return errors.Wrapf(err, "get cluster")
 		}
 		if obj == nil {
-			return fmt.Errorf("cluster not created")
+			return errors.Errorf("cluster not created")
 		}
 
 		return nil
@@ -247,14 +248,14 @@ func testAccCheckClustersNodeDeployment(r, name, flavor, image string, floatingI
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[r]
 		if !ok {
-			return fmt.Errorf("Not found: %s", r)
+			return errors.Errorf("not found: %s", r)
 		}
 		client := testAccProvider.Meta().(*gometakube.Client)
 		projectID := rs.Primary.Attributes["project_id"]
 		dcName := rs.Primary.Attributes["dc"]
 		dc, _, err := client.Datacenters.Get(context.Background(), dcName)
 		if err != nil {
-			return fmt.Errorf("failed to get datacenter details: %v", err)
+			return errors.Wrap(err, "get datacenters")
 		}
 		var nodedepl *gometakube.NodeDeployment
 		items, _, err := client.NodeDeployments.List(context.Background(), projectID, dc.Spec.Seed, rs.Primary.ID)
@@ -265,25 +266,25 @@ func testAccCheckClustersNodeDeployment(r, name, flavor, image string, floatingI
 			}
 		}
 		if nodedepl == nil {
-			return fmt.Errorf("Not found node deployment with name: %s", name)
+			return errors.Errorf("not found node deployment `%s`", name)
 		}
 		if nodedepl.Spec.Replicas != replicas {
-			return fmt.Errorf("want replicas: %v, got: %v", replicas, nodedepl.Spec.Replicas)
+			return errors.Errorf("want nodedepl.Spec.Replicas=%d, got %d", replicas, nodedepl.Spec.Replicas)
 		}
 		if nodedepl.Spec.MinReplicas != minReplicas {
-			return fmt.Errorf("want min_replicas: %v, got: %v", minReplicas, nodedepl.Spec.MinReplicas)
+			return errors.Errorf("want nodedepl.Spec.MinReplicas=%d, got %d", minReplicas, nodedepl.Spec.MinReplicas)
 		}
 		if nodedepl.Spec.MaxReplicas != maxReplicas {
-			return fmt.Errorf("want max_replicas: %v, got: %v", maxReplicas, nodedepl.Spec.MaxReplicas)
+			return errors.Errorf("want nodedepl.Spec.MaxReplicas=%d, got %d", maxReplicas, nodedepl.Spec.MaxReplicas)
 		}
 		if want, got := flavor, nodedepl.Spec.Template.Cloud.Openstack.Flavor; want != got {
-			return fmt.Errorf("want flavor: %v, got: %v", want, got)
+			return errors.Errorf("want flavor=%v, got %v", want, got)
 		}
 		if want, got := image, nodedepl.Spec.Template.Cloud.Openstack.Image; want != got {
-			return fmt.Errorf("want image: %v, got: %v", want, got)
+			return errors.Errorf("want image=%v, got %v", want, got)
 		}
 		if want, got := floatingIP, nodedepl.Spec.Template.Cloud.Openstack.UseFloatingIP; want != got {
-			return fmt.Errorf("want use_floating_ip: %v, got: %v", want, got)
+			return errors.Errorf("want use_floating_ip=%v, got %v", want, got)
 		}
 		return nil
 	}

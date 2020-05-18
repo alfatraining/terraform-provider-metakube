@@ -116,7 +116,7 @@ func testResourceList(t *testing.T, listJSON, path string, want interface{}, cal
 	})
 
 	if got, err := call(); err != nil {
-		t.Fatalf("could not list: %v", err)
+		t.Fatal(err)
 	} else if !reflect.DeepEqual(want, got) {
 		t.Fatalf("want: %v, got: %v", want, got)
 	}

@@ -2,11 +2,11 @@ package metakube
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	"github.com/pkg/errors"
 	"gitlab.com/furkhat/terraform-provider-metakube/gometakube"
 )
 
@@ -61,7 +61,7 @@ func resourceSSHKeyRead(d *schema.ResourceData, m interface{}) error {
 	client := m.(*gometakube.Client)
 	sshkeys, _, err := client.SSHKeys.List(context.Background(), d.Get("project_id").(string))
 	if err != nil {
-		return fmt.Errorf("could not get projects sshkeys: %v", err)
+		return errors.Wrap(err, "list sshkeys")
 	}
 	var v gometakube.SSHKey
 	for _, sshkey := range sshkeys {

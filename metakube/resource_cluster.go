@@ -2,7 +2,6 @@ package metakube
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -235,7 +234,7 @@ func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
 	} else if project, _, err := client.Projects.Get(context.Background(), projectID); err != nil {
 		return err
 	} else if sshkeys, _, err := client.SSHKeys.ListAssigned(context.Background(), projectID, dc.Spec.Seed, id); err != nil {
-		return fmt.Errorf("could not list sshkeys assinged to cluster: %v", err)
+		return errors.Wrap(err, "list sshkeys")
 	} else {
 		d.Set("name", obj.Name)
 		labelsToSet := obj.Labels
@@ -293,7 +292,7 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 			}
 			_, _, err = client.Clusters.Patch(context.Background(), projectID, dc.Spec.Seed, d.Id(), patch)
 			if err != nil {
-				return fmt.Errorf("could not patch cluster (is cluster provisioning compete?). error: %v", err)
+				return errors.Wrap(err, "patch cluster (is cluster provisioning compete?)")
 			}
 			d.SetPartial("name")
 			d.SetPartial("labels")
@@ -317,7 +316,7 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 			patch.Spec.Template.Cloud.Openstack.UseFloatingIP = d.Get("nodedepl.0.use_floating_ip").(bool)
 			_, _, err = client.NodeDeployments.Patch(context.Background(), projectID, dc.Spec.Seed, d.Id(), nodedepl.ID, patch)
 			if err != nil {
-				return fmt.Errorf("could not patch node deployment: %v", err)
+				return errors.Wrapf(err, "patch node deployment")
 			}
 			d.SetPartial("nodedepl")
 		}
@@ -333,7 +332,7 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 		} else if invalidUpgrade, err := clusterVersionBigger(cluster.Spec.Version, versionToUse); err != nil {
 			return nil
 		} else if invalidUpgrade {
-			return fmt.Errorf("cluster version cannot be downgraded")
+			return errors.New("cannot be downgraded")
 		} else {
 			// Upgrade cluster continuously to desired version.
 			for {
@@ -342,7 +341,7 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 					if clusterVersionsHasPrefix(cluster.Spec.Version, versionPrefix) {
 						break
 					}
-					return fmt.Errorf("cluster has no further upgrades, stuck at %s", cluster.Spec.Version)
+					return errors.Errorf("cluster has no more upgrades, stuck at %s", cluster.Spec.Version)
 				}
 				patch := &gometakube.PatchClusterRequest{
 					Spec: &gometakube.PatchClusterRequestSpec{
@@ -351,7 +350,7 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 				}
 				cluster, _, err = client.Clusters.Patch(context.Background(), projectID, dc.Spec.Seed, d.Id(), patch)
 				if err != nil {
-					return fmt.Errorf("could not patch cluster (is cluster provisioning compete?). error: %v", err)
+					return errors.Wrap(err, "patch cluster (is cluster provisioning compete?)")
 				}
 				if err := waitForClusterHealthy(client, projectID, dc.Spec.Seed, d.Id()); err != nil {
 					return err
@@ -364,7 +363,7 @@ func resourceClusterUpdate(d *schema.ResourceData, meta interface{}) error {
 				Version: cluster.Spec.Version,
 			})
 			if err != nil {
-				return fmt.Errorf("could not upgrade cluster nodes: %v", err)
+				return errors.Wrap(err, "upgrade node deployments")
 			}
 		}
 	}
@@ -384,7 +383,7 @@ func resourceClusterDelete(d *schema.ResourceData, meta interface{}) error {
 	if dc, err := getClusterDatacenter(client, d.Get("dc").(string)); err != nil {
 		return err
 	} else if _, err := client.Clusters.Delete(context.Background(), project, dc.Spec.Seed, id); err != nil {
-		return fmt.Errorf("could not delete cluster: %v", err)
+		return errors.Wrap(err, "delete cluster")
 	} else {
 		return waitForClusterDelete(client, project, dc.Spec.Seed, id)
 	}
@@ -393,7 +392,7 @@ func resourceClusterDelete(d *schema.ResourceData, meta interface{}) error {
 func manageSSHKeysInCluster(client *gometakube.Client, old, new interface{}, prj, dc, cls string) error {
 	allKeys, _, err := client.SSHKeys.List(context.Background(), prj)
 	if err != nil {
-		return fmt.Errorf("could not get list of available sshkeys to assign: %v", err)
+		return errors.Wrap(err, "list cluster sshkeys")
 	}
 	actions := make(map[string]bool)
 	if old != nil {
@@ -416,16 +415,16 @@ func manageSSHKeysInCluster(client *gometakube.Client, old, new interface{}, prj
 		}
 		if action {
 			if id == "" {
-				return fmt.Errorf("no ssh key with name `%s` found the the project", v)
+				return errors.Errorf("no ssh key named `%s`", v)
 			}
 			_, _, err = client.SSHKeys.AssignToCluster(context.Background(), prj, dc, cls, id)
 			if err != nil {
-				return fmt.Errorf("could not assign sshkey to cluster: %v", err)
+				return errors.Wrap(err, "assign sshkey to cluster")
 			}
 		} else if id != "" {
 			_, err = client.SSHKeys.RemoveFromCluster(context.Background(), prj, dc, cls, id)
 			if err != nil {
-				return fmt.Errorf("could not unassign sshkey from cluster: %v", err)
+				return errors.Wrap(err, "evict sshkey from cluster")
 			}
 		}
 	}
@@ -446,7 +445,7 @@ func waitForClusterDelete(client *gometakube.Client, prj, dc, id string) error {
 			return errors.Wrapf(err, "GET cluster")
 		}
 		if n > timeout {
-			return fmt.Errorf("Timeout waiting to create delete")
+			return errors.New("cluster delete timeout")
 		}
 		n++
 	}
@@ -471,7 +470,7 @@ func waitForClusterHealthy(client *gometakube.Client, prj, dc, id string) error 
 			return nil
 		}
 		if n > timeout {
-			return fmt.Errorf("Timeout waiting to create cluster")
+			return errors.New("wait cluster is up timeout")
 		}
 		n++
 	}
@@ -484,11 +483,15 @@ func waitNodeDeploymentCreate(client *gometakube.Client, prj, dc, cls, name stri
 	timeout := 5 * 60
 	n := 0
 	for range ticker.C {
-		if _, err = getClusterNodeDeployment(client, prj, dc, cls, name); err == nil {
+		_, err = getClusterNodeDeployment(client, prj, dc, cls, name)
+		if err == nil {
 			return nil
 		}
 		if n > timeout {
-			return fmt.Errorf("Timeout waiting to create cluster node deployment: %v", err)
+			if err != nil {
+				return err
+			}
+			return errors.New("create node deployment timeout")
 		}
 		n++
 	}
@@ -500,7 +503,7 @@ func checkClusterNodedeplImage(client *gometakube.Client, dc *gometakube.Datacen
 	providerPassword := d.Get("provider_password").(string)
 	images, _, err := client.Openstack.Images(context.Background(), dc.Metadata.Name, "Default", providerUsername, providerPassword)
 	if err != nil {
-		return fmt.Errorf("could not get list of images: %v", err)
+		return errors.Wrap(err, "list images")
 	}
 	nodedepl := d.Get("nodedepl").([]interface{})[0].(map[string]interface{})
 	imageName := nodedepl["image"].(string)
@@ -513,7 +516,7 @@ func checkClusterNodedeplImage(client *gometakube.Client, dc *gometakube.Datacen
 	for _, image := range images {
 		availableImages = append(availableImages, "* "+image.Name)
 	}
-	return fmt.Errorf("image `%s` is not avaialable in datacenter `%s`. Consider changing to one of:\n%s",
+	return errors.Errorf("image `%s` is not avaialable in datacenter `%s`. Consider changing to one of:\n%s",
 		imageName,
 		dc.Metadata.Name,
 		strings.Join(availableImages, "\n"))
@@ -524,7 +527,7 @@ func checkClusterTenantValid(client *gometakube.Client, dc *gometakube.Datacente
 	providerPassword := d.Get("provider_password").(string)
 	tenants, _, err := client.Openstack.Tenants(context.Background(), dc.Metadata.Name, "Default", providerUsername, providerPassword)
 	if err != nil {
-		return fmt.Errorf("could not get list of tenants: %v", err)
+		return errors.Wrap(err, "list tenants")
 	}
 	specified := d.Get("tenant").(string)
 	for _, t := range tenants {
@@ -536,7 +539,7 @@ func checkClusterTenantValid(client *gometakube.Client, dc *gometakube.Datacente
 	for _, t := range tenants {
 		available = append(available, "* "+t.Name)
 	}
-	return fmt.Errorf("tenant `%s` is not avaialable in datacenter `%s`. Consider changing to one of:\n%s",
+	return errors.Errorf("tenant `%s` is not avaialable in datacenter `%s`. Consider changing to one of:\n%s",
 		specified,
 		dc.Metadata.Name,
 		strings.Join(available, "\n"))
@@ -546,7 +549,7 @@ func checkClusterDoesNotRedefineProjectLabels(project *gometakube.Project, d *sc
 	clusterLabels := d.Get("labels").(map[string]interface{})
 	for k := range project.Labels {
 		if v, ok := clusterLabels[k]; ok {
-			return fmt.Errorf("cannot change labels inherited from project: %v=%v", k, v)
+			return errors.Errorf("cannot change labels inherited from project: %v=%v", k, v)
 		}
 	}
 	return nil
@@ -555,7 +558,7 @@ func checkClusterDoesNotRedefineProjectLabels(project *gometakube.Project, d *sc
 func getClusterVersionToUse(c *gometakube.Client, prefix string) (string, error) {
 	versions, _, err := c.Clusters.Upgrades(context.Background())
 	if err != nil {
-		return "", fmt.Errorf("could not get available cluster versions: %v", err)
+		return "", errors.Wrap(err, "list cluster upgrades")
 	}
 	return maxVersionWithPrefix(versions, prefix)
 }
@@ -570,7 +573,7 @@ func getClusterVersionToUpgradeInto(c *gometakube.Client, prj, dc, id string) (s
 
 func maxVersionWithPrefix(versions []gometakube.ClusterUpgrade, prefix string) (string, error) {
 	if len(versions) == 0 {
-		return "", fmt.Errorf("empty list of cluster versions returned from api")
+		return "", errors.New("empty list of cluster versions returned from api")
 	}
 	ret := ""
 	versionsStr := make([]string, 0)
@@ -587,7 +590,7 @@ func maxVersionWithPrefix(versions []gometakube.ClusterUpgrade, prefix string) (
 		versionsStr = append(versionsStr, item.Version)
 	}
 	if ret == "" {
-		return "", fmt.Errorf("could not find versions prefixed by: %s, available versions are: %s", prefix, strings.Join(versionsStr, ", "))
+		return "", errors.Errorf("not found applicable version. available: %s", strings.Join(versionsStr, ", "))
 	}
 	return ret, nil
 }
@@ -599,11 +602,11 @@ func checkClusterAutoscaleValid(d *schema.ResourceData) (int, int, error) {
 		return 0, 0, nil
 	}
 	if minReplicas > maxReplicas {
-		return 0, 0, fmt.Errorf("autoscale min_replicas(%d) must be less than or equal to max_replicas(%d)", minReplicas, maxReplicas)
+		return 0, 0, errors.Errorf("autoscale min_replicas(%d) must be less than or equal to max_replicas(%d)", minReplicas, maxReplicas)
 	}
 	replicas := d.Get("nodedepl.0.replicas").(int)
 	if replicas > maxReplicas || replicas < minReplicas {
-		return 0, 0, fmt.Errorf("got autoscale settings [%d; %d], but replicas: %d", minReplicas, maxReplicas, replicas)
+		return 0, 0, errors.Errorf("got autoscale settings [%d; %d], but replicas: %d", minReplicas, maxReplicas, replicas)
 	}
 	return minReplicas, maxReplicas, nil
 }
@@ -611,7 +614,7 @@ func checkClusterAutoscaleValid(d *schema.ResourceData) (int, int, error) {
 func getClusterDatacenter(c *gometakube.Client, n string) (*gometakube.Datacenter, error) {
 	dc, _, err := c.Datacenters.Get(context.Background(), n)
 	if err != nil {
-		return nil, fmt.Errorf("could not get details on datacenter: %v", err)
+		return nil, errors.Wrap(err, "get datacenter")
 	}
 	return dc, nil
 }
@@ -619,7 +622,7 @@ func getClusterDatacenter(c *gometakube.Client, n string) (*gometakube.Datacente
 func getCluster(c *gometakube.Client, prj, dc, id string) (*gometakube.Cluster, error) {
 	obj, _, err := c.Clusters.Get(context.Background(), prj, dc, id)
 	if err != nil {
-		return nil, fmt.Errorf("could not get cluster details: %v", err)
+		return nil, errors.Wrap(err, "get cluster")
 	}
 	return obj, nil
 }
@@ -631,14 +634,14 @@ func clusterLabelsMap(d *schema.ResourceData) (ret map[string]string) {
 func getClusterNodeDeployment(c *gometakube.Client, prj, dc, cls, name string) (*gometakube.NodeDeployment, error) {
 	items, _, err := c.NodeDeployments.List(context.Background(), prj, dc, cls)
 	if err != nil {
-		return nil, fmt.Errorf("could not get cluster node deployments: %v", err)
+		return nil, errors.Wrap(err, "list node deployments")
 	}
 	for _, item := range items {
 		if item.Name == name {
 			return &item, nil
 		}
 	}
-	return nil, fmt.Errorf("could not find node deployment with given name: %s", name)
+	return nil, errors.Errorf("find node deployment by name `%s`", name)
 }
 
 func nodeDeploymentUpdatesMap(nodedepl *gometakube.NodeDeployment) []interface{} {

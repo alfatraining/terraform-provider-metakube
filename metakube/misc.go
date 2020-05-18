@@ -1,11 +1,11 @@
 package metakube
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/pkg/errors"
 )
 
 func labelsMap(d *schema.ResourceData) (ret map[string]string) {
@@ -31,13 +31,13 @@ type clusterVersionsParsed struct {
 func parseClusterVersion(version string) (*clusterVersionsParsed, error) {
 	parts := strings.Split(version, ".")
 	if len(parts) != 3 {
-		return nil, fmt.Errorf("unknown version format: %v", version)
+		return nil, errors.Errorf("unknown version format: %v", version)
 	}
 	parsed := make([]int64, 0)
 	for _, p := range parts {
 		v, err := strconv.ParseInt(p, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse version `%s`: %v", version, err)
+			return nil, errors.Wrapf(err, "parse version `%s`", version)
 		}
 		parsed = append(parsed, v)
 	}
