@@ -43,6 +43,13 @@ func resourceCluster() *schema.Resource {
 					ValidateFunc: validation.NoZeroValues,
 				},
 			},
+			"floating_ip_pool": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				Default:      "ext-net",
+				ValidateFunc: validation.NoZeroValues,
+			},
 			"version": {
 				Type:         schema.TypeString,
 				Required:     true,
@@ -172,7 +179,7 @@ func resourceClusterCreate(d *schema.ResourceData, meta interface{}) error {
 							Tenant:         d.Get("tenant").(string),
 							Username:       d.Get("provider_username").(string),
 							Password:       d.Get("provider_password").(string),
-							FloatingIPPool: "ext-net",
+							FloatingIPPool: d.Get("floating_ip_pool").(string),
 						},
 						DataCenter: d.Get("dc").(string),
 					},
@@ -248,6 +255,7 @@ func resourceClusterRead(d *schema.ResourceData, meta interface{}) error {
 		}
 		d.Set("dc", obj.Spec.Cloud.DataCenter)
 		d.Set("audit_logging", obj.Spec.AuditLogging.Enabled)
+		d.Set("floating_ip_pool", obj.Spec.Cloud.OpenStack.FloatingIPPool)
 
 		d.Set("nodedepl", nodeDeploymentUpdatesMap(nodeDeployment))
 
